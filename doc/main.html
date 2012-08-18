@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C/DTD XHTML 1.1//EN"
+                      "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja">
+	<head>
+		<meta http-equiv = "Content-Type"
+		      content    = "text/html; charset=utf-8" />
+		<meta http-equiv = "Content-Style-Type"
+		      content    = "text/css" />
+		<meta http-equiv = "Content-Script-Type"
+		      content    = "text/javascript" />
+
+		<link rel="stylesheet" type="text/css" href="style/main.css" />
+	</head>
+	<body>
+		<p class="summary-sec">
+			これは <a href="http://www.metaseq.net/metaseq/">Metasequoia(http://www.metaseq.net/metaseq/)</a>
+			ファイルフォーマットの、 mqo ファイルを読み込むためのプログラムです。<br />
+			あと、<a href="http://you-ri.s24.xrea.com/">Mikoto(http://you-ri.s24.xrea.com/)</a> のモーションを読みこめるようになりつつあります。
+		</p>
+		<p class="bug-sec">
+			<ul>
+				<li><del>作者は Metasequoia を使ったことがありません。</del>(2012/06/04)</li>
+				<li>使ってみたものの、ソフトの使い方が分りません。(&gt;_&lt;;</li>
+				<li>いくつかのブラウザでこのドキュメントが見られない。</li>
+				<li>関節の感じがなんかちがう</li>
+				<li>CTFEできない。-&gt; <a href="http://d.puremagic.com/issues/show_bug.cgi?id=6498">Bugzilla 6498</a></li>
+			</ul>
+		</p>
+		<p class="todo-sec">
+			<ul>
+				<li>Metasequoia の機能の境界をつなげて鏡面処理とか、曲面の補完とか法線とかやらねば。</li>
+				<li>モーションの補完方法を検討せねば。なんか違うんだよね。</li>
+				<li>その為にはOpenRDBのソース読まねば。</li>
+				<li><del>あといいかげんシェーダ書かねば。</del>(2012/08/15 書きました。)</li>
+				<li>MikotoActor の仕様を決定せねば。</li>
+			</ul>
+		</p>
+		<p class="how-to-use-sec">
+<pre class="d_code">
+<span class="dkeyword">import</span> sworks.mqo.mikoto;
+<span class="dkeyword">import</span> sworks.compo.sdl.iconv;
+.
+.
+.
+IConv.load();
+<span class="dkeyword">auto</span> converter = <span class="dkeyword">new</span> IConvConverter!( <q>UTF-8</q>, <q>SHIFT-JIS</q>, char, 64 );
+string toUTF8( jstring sjis ) { return converter( sjis ); }
+</pre>
+			IConv.load() では libiconv-2.dll をロードしています。SHIFT-JIS -&gt; UTF-8 の変換をやるためです。<br />
+			MikotoActor クラスのコンストラクタ内で利用していますので、他の使いたい方はソースいじって下さい。<br />
+<pre class="d_code">
+<span class="dkeyword">auto</span> dsan = <span class="dkeyword">new</span> MikotoActor( &amp;toUTF8, <q>dsan\\DさんMove.mks</q> );
+</pre>
+			で、データの読み込まれた MikotoActor インスタンスを得られます。<br />
+			将来的にはこのクラスに全ての機能を持たせる予定ですが、まだ何もできません。orz<br />
+		</p>
+		<p class="acknowledgements-sec">
+			<ul class="spaced-list">
+				<li>
+					2ch D言語 Part29 569 さんの作った メタセコイアモデルを利用しています。<br />
+					<a href="http://toro.2ch.net/test/read.cgi/tech/1329714331/569">Dさん.mqo (http://toro.2ch.net/test/read.cgi/tech/1329714331/569)</a><br />
+				</li>
+				<li>
+					2ch D言語 Part29 637 さんの作った Mikoto モーションを利用しています。<br />
+					<a href="http://toro.2ch.net/test/read.cgi/tech/1329714331/637">Dさん.mks (http://toro.2ch.net/test/read.cgi/tech/1329714331/637)</a>
+				</li>
+				<li>
+					2ch D言語 part29 <a href="http://toro.2ch.net/test/read.cgi/tech/1329714331/574">574</a>
+					さんのゲーム作る流れが、モチベーションです。<br />
+					<a href="http://sourceforge.jp/projects/d-action/wiki/FrontPage">D言語でアクションゲームでも作ってみる？(http://sourceforge.jp/projects/d-action/wiki/FrontPage)</a><br />
+				</li>
+				<li>
+					D言語用です。<br />
+					<a href="http://dlang.org/index.html">D Programing Language 2.0 (http://dlang.org/index.html)</a><br />
+				</li>
+				<li>
+					C言語ライブラリのポーティングに Derelict を使っています。<br />
+					<a href="http://dsource.org/projects/derelict">Derelict (http://dsource.org/projects/derelict)</a><br />
+					<a href="https://github.com/aldacron/Derelict3">Derelict3 (https://github.com/aldacron/Derelict3)</a><br />
+				</li>
+				<li>
+					SDL+OpenGL 環境を想定しています。<br />
+					<a href="http://www.libsdl.org/">SDL (http://www.libsdl.org/)</a><br />
+					<a href="http://www.opengl.org/">OpenGL (http://www.opengl.org/)</a><br />
+					<a href="http://www.libsdl.org/projects/SDL_image/">SDL_image (http://www.libsdl.org/projects/SDL_image/)</a><br/>
+					<a href="http://www.libsdl.org/projects/SDL_image/libs/">SDL_image libraries (http://www.libsdl.org/projects/SDL_image/libs/)</a><br />
+					<a href="http://www.ijg.org/">Independent JPEG Group (http://www.ijg.org/)</a><br />
+				</li>
+				<li>
+					SHIFT-JIS -> UTF-8 の変換に iconv を利用しています。<br />
+					<a href="http://www.gnu.org/software/libiconv/">libiconv (http://www.gnu.org/software/libiconv/)</a><br />
+				</li>
+				<li>
+					本プログラムで扱っている3Dモデラーです。<br />
+					<a href="http://www.metaseq.net/metaseq/index.html">Metasequoia (http://www.metaseq.net/metaseq/index.html)</a><br />
+					<a href="http://www.metaseq.net/metaseq/format.html">Metasequoia file format (http://www.metaseq.net/metaseq/format.html)</a><br />
+				</li>
+				<li>
+					本プログラムで扱っているポージングツールです。<br />
+					<a href="http://you-ri.s24.xrea.com/">Mikoto (http://you-ri.s24.xrea.com/)</a><br />
+					製作者サイトからダウンロードできないようなので再配布先からダウンロードしました。<br />
+					<a href="http://mattaku.sa-ra-sa.com/html/download_b.html">Mikoto 再配布 (http://mattaku.sa-ra-sa.com/html/download_b.html)</a><br />
+				</li>
+				<li>
+					OpenRDB がなければなんもできなかったでしょう。これからも参考にさせていただきます。m(_ _)m<br />
+					<a href="http://ochakkolab.moo.jp/OpenProject/index.htm">OpenRDB (http://ochakkolab.moo.jp/OpenProject/index.htm)</a>
+				</li>
+				<li>
+					OOB の衝突判定の実装にあたり<del>まるっとコピペ</del>参考にさせていただきました。<br />
+					<a href="http://marupeke296.com/index.html">○×つくろーどっとコム (http://marupeke296.com/index.html)</a>
+					<a href="http://marupeke296.com/COL_3D_No13_OBBvsOBB.html"> ・ その13 OOB と OOB の衝突 (http://marupeke296.com/COL_3D_No13_OBBvsOBB.html)</a>
+				</li>
+				<li>
+					ドキュメントに JQuery を利用しています。<br />
+					<a href="http://jquery.com/">JQuery (http://jquery.com/)</a><br />
+					<a href="http://jqueryui.com/">JQuery UI (http://jqueryui.com/)</a><br />
+					<a href="https://developers.google.com/speed/">Google CDN (https://developers.google.com/speed/)</a><br />
+				</li>
+			</ul>
+		</p>
+		<p class="license-sec">
+			<a href="http://creativecommons.org/publicdomain/zero/1.0/">CC0(http://creativecommons.org/publicdomain/zero/1.0/)</a><br />
+			<p xmlns:dct="http://purl.org/dc/terms/" xmlns:vcard="http://www.w3.org/2001/vcard-rdf/3.0#">
+				<a rel="license" href="http://creativecommons.org/publicdomain/zero/1.0/">
+					<img src="http://i.creativecommons.org/p/zero/1.0/88x31.png" style="border-style: none;" alt="CC0" />
+				</a>
+				<br />
+				To the extent possible under law,
+				<a rel="dct:publisher" href="sweatygarlic@yahoo.co.jp">
+					<span property="dct:title">KUMA</span></a>
+				has waived all copyright and related or neighboring rights to
+				<span property="dct:title">mqo_loader</span>.
+				This work is published from:
+				<span property="vcard:Country" datatype="dct:ISO3166" content="JP" about="sweatygarlic@yahoo.co.jp">
+					日本</span>.
+			</p>
+		</p>
+		<p class="environment-sec">
+			以下の環境で開発&amp;動作確認しました。
+			<ul>
+				<li>Windows Vista x64</li>
+				<li>dmd 2.060 + Phobos</li>
+			</ul>
+			このドキュメントは<br />
+			FireFox 13 &amp;&amp; IE 9 &amp;&amp; Safari 5 &amp;&amp; Google Chrome 19 &amp;&amp; Sleipnir 2 で動作確認しました。<br />
+			Lunascape 6 || Iron 18 || Opera 11 では表示させることが出来ませんでした。なんでやー<br />
+		</p>
+		<p class="history-sec">
+			<ul class="spaced-list">
+				<li>
+					2012/08/15 ver. 0.0012(dmd2.060)<br />
+					mqo ファイルに記述されているテクスチャファイル名が絶対パスなのを考慮してませんでした。<br />
+					<a href="http://toro.2ch.net/test/read.cgi/tech/1343660743/145">D言語 Part30 145 さん</a> のご指摘により、修正しました。<br />
+				</li>
+				<li>
+					2012/08/15 ver. 0.0011(dmd2.060)<br />
+					テクスチャ対応。<br />
+					全体的に書き直し &amp; 最適化。のわりにあまり変らなかったorz<br />
+					コンパイル時評価断念。ボクが悪いんじゃないもん。<a href="http://d.puremagic.com/issues/show_bug.cgi?id=6498">バグ</a>のせいだもん。<br />
+				</li>
+				<li>
+					2012/07/18 ver. 0.0010(dmd2.059)<br />
+					Derelict3対応。parser.d の若干の最適化。<br />
+					std.stream ってなんであんなに遅いん？<br />
+					std.stdio ってなんで日本語ファイル名あかんの？<br />
+				</li>
+				<li>
+					2012/06/25 ver. 0.0009a(dmd2.059)<br />
+					OOB による当り判定の実装。<br />
+					関節がなんかだいぶ Mikoto の出力に近づいてきがす<br />
+					ところで<br />
+					<strong> 誤) float.min </strong><br/>
+					<b> 正) -float.max </b><br />
+					いままでもそうだったか!？や、つかオカシくね？これっておかしくないですか？カテジナさん？<br />
+				</li>
+				<li>
+					2012/06/23 ver. 0.0008(dmd2.059)<br />
+					関節がチガウ原因も分らないまま sample.d を更新。………なんかちゃう…なんかちゃうんやぁッ!<br />
+					ところでここ数日悩まされてきた連想配列回りのバグは、<a href="http://d.puremagic.com/issues/show_bug.cgi
+?id=5950">Issue 5950</a> と判明した。や、なにも解決してないわけだが。<br />
+					MikotoActor の仕様を絶賛検討中<br />
+				</li>
+				<li>
+					2012/06/21 ver. 0.0007(dmd2.059)<br />
+					関節つけました。でもなんか印象が本家とちがうよな。補完方法かな？<br/>
+				</li>
+				<li>
+					2012/06/19 ver. 0.0007aaa(dmd2.059)<br />
+					version 0.0007 alpha alpha alpha 超暫定版。とりあえず動いたお。。。長かったお。。。。。。<br />
+				</li>
+				<li>
+					2012/06/11 ver. 0.0006(dmd2.059)<br />
+					.mks になんとなく対応。だからといってまだなにもできない。<br />
+					Doxygen はテンプレートまわりがダメダメなので ddoc に。<br />
+					sworks.mqo.mki はなんかあんまりいらなさそうなので削除。<br />
+				</li>
+				<li>
+					2012/06/08 ver. 0.0005(dmd2.059)<br />
+					BVertex に対応。<br />
+				</li>
+				<li>
+					2012/06/05 ver. 0.0004(dmd2.059)<br />
+					ソースの見通しをよく。sworks.compo.matrix に Quarternion を追加。黒魔術すぎる...orz<br />
+					loadMKIntermediate の追加。だが中身の意味がわからない。<br />
+					Metasequoia と Mikoto をようやくインストール。使い方が、分らない。＼(TヘT)／<br />
+				</li>
+				<li>
+					2012/06/04 ver. 0.0003(dmd2.059)<br />
+					loadMKMotion の追加。MIKOTO Motion 読み込みにむけて。
+				</li>
+				<li>
+					2012/06/02 ver. 0.0002(dmd2.059)<br />
+					loadMQObjectFromFile の追加。SHIFT-JISに対応
+				</li>
+				<li>
+					2012/06/01 ver. 0.0001(dmd2.059)<br />
+					とりあえずDさんが回転したお<br />
+				</li>
+			</ul>
+		</p>
+	</body>
+</html>

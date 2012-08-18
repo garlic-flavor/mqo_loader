@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C/DTD XHTML 1.1//EN"
+                      "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja">
+	<head>
+		<meta http-equiv = "Content-Type"
+		      content    = "text/html; charset=utf-8" />
+		<meta http-equiv = "Content-Style-Type"
+		      content    = "text/css" />
+		<meta http-equiv = "Content-Script-Type"
+		      content    = "text/javascript" />
+
+		<link rel="stylesheet" type="text/css" href="style/main.css" />
+		<title>
+			MQOLoader
+		</title>
+	</head>
+	<body>
+		<link href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/themes/base/jquery-ui.css" rel="stylesheet" type="text/css"/>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/jquery-ui.min.js"></script>
+
+		<script src="./script/main.js"></script>
+		<script>
+			function init()
+			{
+				entryModule( "./src/sworks/mqo/mikoto.html" );
+				entryModule( "./src/sworks/mqo/mikoto_model.html" );
+				entryModule( "./src/sworks/mqo/mikoto_motion.html" );
+				entryModule( "./src/sworks/mqo/bone_system.html" );
+				entryModule( "./src/sworks/mqo/parser.html" );
+				entryModule( "./src/sworks/mqo/parser_core.html" );
+				entryModule( "./src/sworks/mqo/mqo.html" );
+				entryModule( "./src/sworks/mqo/mkm.html" );
+				entryModule( "./src/sworks/mqo/mks.html" );
+				entryModule( "./src/sworks/mqo/misc.html" );
+				loadToMain( "./main.html" );
+			}
+		</script>
+
+		<h1>
+			MQOLoader <small>ver 0.0012(dmd2.060)</small>
+		</h1>
+		<div class="left-pain">
+			<span class="module-item" id="module-list-main" onclick="loadToMain('./main.html');">home</span>
+			<ul class="module-list"> </ul>
+		</div>
+		<div class="main"> </div>
+		<div class="footer">
+			ご連絡は &#x261e; <a href="mailto:sweatygarlic@yahoo.co.jp">sweatygarlic@yahoo.co.jp</a> まで
+		</div>
+	</body>
+</html>

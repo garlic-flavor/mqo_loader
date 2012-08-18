@@ -1,0 +1,97 @@
+Mikoto Motion Ver 2
+Motion {
+	name = "motion[00]"
+	endframe = 60
+	loop = 0
+	Vector {
+		name = "j_material1"
+		class = "Locate"
+		member = "pos"
+		curve = "spline"
+		0 (-11.825999 -81.291389 -30.962198)
+		28 (-11.825999 -81.291389 -30.962198)
+		57 (-11.825999 -81.291389 -30.962198)
+	}
+	Quaternion {
+		name = "material1"
+		class = "Coordinate"
+		member = "rot"
+		curve = "spline"
+		0 (-0.074918 -0.639174 -0.761938 0.072757)
+		28 (-0.074918 -0.639174 -0.761938 0.072757)
+		57 (-0.074918 -0.639174 -0.761938 0.072757)
+	}
+	Vector {
+		name = "j_material101"
+		class = "Locate"
+		member = "pos"
+		curve = "spline"
+		0 (86.420593 74.093094 0.341200)
+		28 (86.420593 74.093094 0.341200)
+		57 (86.420593 74.093094 0.341200)
+	}
+	Quaternion {
+		name = "material101"
+		class = "Coordinate"
+		member = "rot"
+		curve = "spline"
+		0 (0.622046 -0.308037 -0.626916 -0.353762)
+		28 (0.622046 -0.308037 -0.626916 -0.353762)
+		57 (0.622046 -0.308037 -0.626916 -0.353762)
+	}
+	Vector {
+		name = "j_material102"
+		class = "Locate"
+		member = "pos"
+		curve = "spline"
+		0 (-96.569290 71.704193 -5.906000)
+		28 (-96.569290 71.704193 -5.906000)
+		57 (-96.569290 71.704193 -5.906000)
+	}
+	Quaternion {
+		name = "material102"
+		class = "Coordinate"
+		member = "rot"
+		curve = "spline"
+		0 (-0.561301 -0.400219 -0.676207 0.259827)
+		28 (-0.335561 -0.465565 -0.686125 0.447080)
+		57 (-0.561301 -0.400219 -0.676206 0.259827)
+	}
+	Vector {
+		name = "j_material103"
+		class = "Locate"
+		member = "pos"
+		curve = "spline"
+		0 (-32.990795 -93.444595 5.853499)
+		28 (-32.990795 -93.444595 5.853499)
+		57 (-32.990795 -93.444595 5.853499)
+	}
+	Quaternion {
+		name = "material103"
+		class = "Coordinate"
+		member = "rot"
+		curve = "spline"
+		0 (0.499416 0.532376 -0.461064 0.504559)
+		28 (0.499416 0.532376 -0.461064 0.504559)
+		57 (0.499416 0.532376 -0.461064 0.504559)
+	}
+	Vector {
+		name = "j_material104"
+		class = "Locate"
+		member = "pos"
+		curve = "spline"
+		0 (16.390299 -91.646294 1.424500)
+		28 (16.390299 -91.646294 1.424500)
+		57 (16.390299 -91.646294 1.424500)
+	}
+	Quaternion {
+		name = "material104"
+		class = "Coordinate"
+		member = "rot"
+		curve = "spline"
+		0 (0.450831 0.562244 -0.403563 0.563711)
+		28 (0.450831 0.562244 -0.403563 0.563711)
+		57 (0.450831 0.562244 -0.403563 0.563711)
+	}
+}
+Eof
