@@ -39,11 +39,11 @@ private
     import derelict.util.system;
 
     static if(Derelict_OS_Windows)
-        enum libNames = "glfw.dll";
+        enum libNames = "glfw3.dll";
     else static if(Derelict_OS_Mac)
-        enum libNames = "libglfw.dylib";
+        enum libNames = "libglfw3.dylib";
     else static if(Derelict_OS_Posix)
-        enum libNames = "libglfw.so,/usr/local/lib/libglfw.so";
+        enum libNames = "libglfw3.so,/usr/local/lib/libglfw3.so";
     else
         static assert(0, "Need to implement GLFW libNames for this operating system.");
 }
@@ -66,10 +66,9 @@ class DerelictGLFW3Loader : SharedLibLoader
             bindFunc(cast(void**)&glfwSetGamma, "glfwSetGamma");
             bindFunc(cast(void**)&glfwGetGammaRamp, "glfwGetGammaRamp");
             bindFunc(cast(void**)&glfwSetGammaRamp, "glfwSetGammaRamp");
-            bindFunc(cast(void**)&glfwOpenWindow, "glfwOpenWindow");
-            bindFunc(cast(void**)&glfwOpenWindowHint, "glfwOpenWindowHint");
-            bindFunc(cast(void**)&glfwIsWindow, "glfwIsWindow");
-            bindFunc(cast(void**)&glfwCloseWindow, "glfwCloseWindow");
+            bindFunc(cast(void**)&glfwCreateWindow, "glfwCreateWindow");
+            bindFunc(cast(void**)&glfwWindowHint, "glfwWindowHint");
+            bindFunc(cast(void**)&glfwDestroyWindow, "glfwDestroyWindow");
             bindFunc(cast(void**)&glfwSetWindowTitle, "glfwSetWindowTitle");
             bindFunc(cast(void**)&glfwGetWindowSize, "glfwGetWindowSize");
             bindFunc(cast(void**)&glfwSetWindowSize, "glfwSetWindowSize");
@@ -102,6 +101,8 @@ class DerelictGLFW3Loader : SharedLibLoader
             bindFunc(cast(void**)&glfwGetJoystickParam, "glfwGetJoystickParam");
             bindFunc(cast(void**)&glfwGetJoystickPos, "glfwGetJoystickPos");
             bindFunc(cast(void**)&glfwGetJoystickButtons, "glfwGetJoystickButtons");
+            bindFunc(cast(void**)&glfwSetClipboardString, "glfwSetClipboardString");
+            bindFunc(cast(void**)&glfwGetClipboardString, "glfwGetClipboardString");
             bindFunc(cast(void**)&glfwGetTime, "glfwGetTime");
             bindFunc(cast(void**)&glfwSetTime, "glfwSetTime");
             bindFunc(cast(void**)&glfwMakeContextCurrent, "glfwMakeContextCurrent");

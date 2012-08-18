@@ -1,6 +1,6 @@
 /** 機能の基本となる(予定)のクラス MikotoActor を提供する。
- * Version:      0.0012(dmd2.060)
- * Date:         2012-Aug-17 00:12:50
+ * Version:      0.0013(dmd2.060)
+ * Date:         2012-Aug-18 21:27:11
  * Authors:      KUMA
  * License:      CC0
  */

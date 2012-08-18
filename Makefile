@@ -53,19 +53,19 @@ clean :
 clean_obj :
 	del $(TO_LINK)
 vwrite :
-	vwrite -ver="0.0012(dmd2.060)" -prj=$(TARGET) $(TO_COMPILE)
+	vwrite -ver="0.0013(dmd2.060)" -prj=$(TARGET) $(TO_COMPILE)
 ddoc :
 	dmd -c -o- -op -D -Dddoc $(COMPILE_FLAG) $(DDOC_FILE) $(TO_COMPILE) $(FLAG)
 show :
 	@echo ROOT = sample.d
 	@echo TARGET = $(TARGET)
-	@echo VERSION = 0.0012(dmd2.060)
+	@echo VERSION = 0.0013(dmd2.060)
 run :
 	$(TARGET) $(FLAG)
 edit :
 	emacs $(TO_COMPILE)  Makefile
 remake :
-	amm vwrite=0.0012(dmd2.060) .\sample.d doc\main.ddoc $(FLAG)
+	amm vwrite=0.0013(dmd2.060) .\sample.d doc\main.ddoc $(FLAG)
 
 debug :
 	ddbg $(TARGET)
