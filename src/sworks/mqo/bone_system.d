@@ -1,16 +1,82 @@
 /** MikotoModel を動かす為にボーンを準備する。
- * Version:      0.0013(dmd2.060)
- * Date:         2012-Aug-18 21:27:11
+ * Version:      0.0014(dmd2.062)
+ * Date:         2013-Apr-06 01:08:29
  * Authors:      KUMA
  * License:      CC0
  */
 module sworks.mqo.bone_system;
 
-import std.algorithm;
+import std.algorithm, std.exception;
 import sworks.compo.util.matrix;
 import sworks.mqo.misc;
 import sworks.mqo.mikoto_model;
 debug import std.stdio, sworks.compo.util.dump_members;
+
+/*SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS*\
+|*|                          VertexLayoutDescriptor                          |*|
+\*SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS*/
+/**
+ * 頂点座標を格納する構造体の定義に使う。
+ * Example:
+ * -----------------------------------------------------------------------------
+ * $(D_KEYWORD struct) Vertex
+ * {
+ *     @VLD_POSITION $(D_KEYWORD float)[3] pos;    // 頂点座標
+ *     @VLD_NORMAL   $(D_KEYWORD float)[3] normal; // 法線ベクトル
+ * }
+ * -----------------------------------------------------------------------------
+ */
+struct VertexLayoutDescriptor { string type; }
+/// ditto
+enum VLD_POSITION = VertexLayoutDescriptor("POSITION");
+/// ditto
+enum VLD_NORMAL = VertexLayoutDescriptor("NORMAL");
+/// ditto
+enum VLD_TEXTURE = VertexLayoutDescriptor( "TEXTURE[0]" );
+/// ditto
+enum VLD_MATRIX = VertexLayoutDescriptor( "MATRIX" );        // ┐
+/// ditto
+enum VLD_INFLUENCE = VertexLayoutDescriptor( "INFLUENCE" );  // ┴ この2つはセットで使う。
+
+/*SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS*\
+|*|                            AttributeConnector                            |*|
+\*SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS*/
+/**
+ * 構造体 T のうち、ATTR の UDA を持つ(最初の)メンバへのアクセスに。
+ * Example:
+ * -----------------------------------------------------------------------------
+ * Vertex v; // 上記の構造体。
+ * $(D_KEYWORD alias) pos_connector = AttributeConnector!( Vertex, VLD_POSITION );
+ * pos_connector(v) = [ 3.0, 4.0, 5.0 ]; // v.pos へアクセスできる。
+ * -----------------------------------------------------------------------------
+ */
+struct AttributeConnector( T, alias ATTR )
+{
+	enum member = _getName();
+	enum active = 0 < member.length;
+
+	static if( 0 < member.length ) alias TYPE = typeof( __traits( getMember, T, member ) );
+	else { alias TYPE = int; }
+
+	private static string _getName()
+	{
+		foreach( m ; __traits( derivedMembers, T ) )
+		{
+			foreach( attr ; __traits( getAttributes, __traits( getMember, T, m ) ) )
+			{
+				if( ATTR == attr ) return m;
+			}
+		}
+		return "";
+	}
+
+	/// UDA ATTR を持つメンバを得る。そんなメンバがない場合は $(D_KEYWORD assert)(0);
+	static ref inout(TYPE) opCall( ref inout(T) t )
+	{
+		static if( active ) return __traits( getMember, t, member );
+		else assert(0);
+	}
+}
 
 /*SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS*\
 |*|                                 BoneSet                                  |*|
@@ -19,60 +85,55 @@ debug import std.stdio, sworks.compo.util.dump_members;
  * ボーンの名前(マテリアル名)と BoneSystem.bones でのインデックス値を紐付けするための一時オブジェクト。$(BR)
  * MikotoMotion のモーションを適用する際に参照される。$(BR)
  */
-struct BoneSet
+struct BoneSet(VERTEX)
 {
 	BoneSystem bsys; /// 対象となる BoneSystem
+	VERTEX[][] skins; /// bones で使われる全スキン。由来する ObjectChunk 毎に分類してある。
 	int[jstring] bone_id; /// マテリアル名 -&gt; インデックス
-	/**
-	 * bsys のルートボーンとその兄弟ボーンの名前を格納している。$(BR)
-	 * モーション適用時、ルートボーンのみは平行移動するが、
-	 * mkm ファイル内で兄弟ボーンの内どれが最上位とされているのか不明の為、全て列挙しておく。$(BR)
-	 */
+	/*
+	 * <del>bsys のルートボーンとその兄弟ボーンの名前を格納している。$(BR)
+	 * モーション適用時、ルートボーンのみは平行移動する</del>( &lt;- ウソ。どのボーンも平行移動します。)<del>が、
+	 * mkm ファイル内で兄弟ボーンの内どれが最上位とされているのか不明の為、全て列挙しておく。</del>$(BR)
 	jstring[] roots;
+	 */
 }
 
 /*CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC*\
 |*|                                BoneSystem                                |*|
 \*CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC*/
 /**
- * あるルートボーンとその子ボーンを管理する。$(BR)
+ * ルートボーンとその子ボーンを管理する。$(BR)
  *
  * Bugs:
- *   頂点情報は、BoneSystem が管理している。(なんとなく違和感があるので変えるかも。)$(BR)
+ *   頂点インデックス/マテリアル情報は、BoneSystem が管理している。(なんとなく違和感があるので変えるかも。)$(BR)
  *   Bone 下にスキンのインデックス、マテリアル情報も持たせている。
  */
 class BoneSystem
 {
-	Bone root; /// 最上位のボーン
+	Bone[] bones; /// このシステムに含まれる全てのボーン。roots も含まれる。
+	Bone[] roots; /// bones のうち、親ボーンを持たないボーン
 
-	SdefVertex[][] skins; /// bones で使われる全スキン。由来する ObjectChunk 毎に分類してある。
-	Bone[] bones; /// このシステムに含まれる全てのボーン
-
-	TranslateMotion world_translate; /// ローカル座標の平行移動運動
-	RotateMotion world_rotate; /// ローカル座標の回転移動運動
-	TranslateMotion root_translate; /// ルートのみ平行移動がある。
-	Tranf root_world; /// ローカル座標の変換用
+	TranslateMotion world_translate; /// ローカルワールド座標の平行移動運動
+	RotateMotion world_rotate; /// ローカルワールド座標の回転移動運動
 
 	/**
 	 * Params:
 	 *   bones = bones[0] がルートとする。
 	 */
-	this( Bone[] bones )
+	this( Bone[] roots, Bone[] bones )
 	{
-		assert( 0 < bones.length );
+		this.roots = roots;
 		this.bones = bones;
-		this.root = bones[0];
 	}
+
 
 	/// システムの変換行列を更新する。
 	void update( float f )
 	{
-		root_world.loadIdentity;
-		if( null !is world_translate ) root_world.translation = world_translate[f];
-		if( null !is world_rotate ) root_world.rotation = world_rotate[f];
-		if( null !is root_translate ) root_world += root_translate[f];
-
-		root.update( f, root_world );
+		Tranf worldGlobalize;
+		if( null !is world_translate ) worldGlobalize.translation = world_translate[f];
+		if( null !is world_rotate ) worldGlobalize.rotation = world_rotate[f];
+		foreach( root ; roots ) root.update( f, worldGlobalize );
 	}
 
 }
@@ -81,7 +142,7 @@ class BoneSystem
 |*|                                   Bone                                   |*|
 \*CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC*/
 /**
- * Mikoto のボーン。斜辺の対角が原点。$(BR)
+ * Mikoto のボーン。最長辺の対角が原点。$(BR)
  * 第二長辺が、Z軸正の向き。$(BR)
  * 最短辺と第二長辺の外積が X軸正の向きになっていると思われる。たぶん。$(BR)
  *
@@ -90,11 +151,12 @@ class BoneSystem
  */
 class Bone
 {
-	int id; /// 0 がルートとなる、ボーンの ID。BoneSystem.bones のインデックス値。
+	int id; /// <del>0 がルートとなる、</del>ボーンの ID。BoneSystem.bones のインデックス値。
 	Bone parent; /// 親ボーン。
 	Bone[] children; /// 子ボーン。
-	Bone big_brother; /// 兄ボーン
-	Bone little_brother; /// 弟ボーン
+	Bone[] neighbours; /// Anchor が干渉しあう Bone。自身は含まれない。
+	Bone[] brothers;   /// ボーンの原点を同じくする弟ボーン。自身は含まれない。Materialチャンクで先に出てくるBoneが兄(たぶん)。
+	                   /// 兄弟ボーンは平行移動のみ共有する。
 
 	Tranf localize; /// 一般ワールド座標 -&gt; origin を原点とするローカル座標への変換
 	Vector3f globalize; /// ローカル座標 -&gt; 一つ上のボーンのローカル座標へ。
@@ -106,15 +168,17 @@ class Bone
 	Matrix4f transform;
 
 	/**
-	 * 現在適用中のモーション。ルートボーン以外は平行移動しない。$(BR)
+	 * 現在適用中のモーション。<del>ルートボーン以外は平行移動しない。</del>&lt;-これはウソ。ボーンの原点を右クリ、ロック解除で移動できました。$(BR)
 	 * ボーンの先端(ローカル座標のZ軸正の向き)がワールド座標の Z軸正の向きと一致する位置からの回転を示している。
 	 */
-	RotateMotion motion;
+	TranslateMotion translation;
+	/// ditto
+	RotateMotion rotation;
 
 	OBBox bbox; /// 頂点を内包するバウンディングボックス。当り判定用
 	Vector3f centering; /// 当り判定用
 
-	SdefSkin[] parts; /// このボーンに所属するモデル。スキン毎に分類されている。
+	SdefPart[] parts; /// このボーンに所属するモデル。スキン毎に分類されている。
 
 	/// vertex[ face[0] ] が原点、vertex[ face[1] ] がボーン先端。
 	this( int id, Vector3f[] boneV, uint[] boneF, Bone parent )
@@ -130,9 +194,8 @@ class Bone
 			ts = Tranf( parent.localize * boneV[ boneF[0] ]
 			          , parent.localize * boneV[ boneF[1] ]
 			          , parent.localize * boneV[ boneF[2] ] );
+			globalize = -ts.translation;
 		}
-
-		globalize = -ts.translation;
 	}
 
 	/// transform を更新する。
@@ -140,7 +203,9 @@ class Bone
 	{
 		currentGlobalize = parent_globalize;
 		currentGlobalize += globalize;
-		if( null !is motion ) currentGlobalize *= motion[f];
+		if( null !is translation ) currentGlobalize += translation[f];
+		foreach( bro ; brothers ) bro.update( f, currentGlobalize ); // 弟ボーンには自身の回転運動は影響しない。
+		if( null !is rotation ) currentGlobalize *= rotation[f];
 		transform = (currentGlobalize * localize).toMatrix; // 完成
 
 		// 当り判定用
@@ -150,55 +215,66 @@ class Bone
 
 		// 子に適用
 		foreach( child ; children ) child.update( f, currentGlobalize );
-		if( null !is little_brother ) little_brother.update( f, parent_globalize );
 	}
 
+	/// 法線ベクトルを準備する。
+	void addNormalVector(VERTEX)( VERTEX[][] skins )
+	{
+		foreach( part ; parts )
+		{
+			part.addNormalVector( skins[ part.vertex_id ] );
+		}
+	}
 }
 
 /*SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS*\
-|*|                                SdefVertex                                |*|
-\*SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS*/
-/**
- * 頂点情報
- * ToDo:
- *   今後、メンバを増やしていく予定。
- */
-struct SdefVertex
-{
-	Vector3f pos; /// 位置
-	UVf uv; /// テクスチャ座標
-	alias pos this;
-
-	int[4] mat = [ -1, -1, -1, -1 ]; /// 影響を受ける変換行列
-	float[4] influence = [ 0f, 0, 0, 0 ]; /// それぞれの行列の影響度。∫= 1
-}
-
-/*SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS*\
-|*|                                 SdefSkin                                 |*|
+|*|                                 SdefPart                                 |*|
 \*SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS*/
 /**
  * スキン毎に分類されたインデックスを格納する。
  */
-struct SdefSkin
+struct SdefPart
 {
-	int vertex_id; /// BoneSystem.skins[ vertex_id ] の頂点座標を使う。
-	SdefIndex[] faces; /// マテリアル毎に分類されている。
+	int vertex_id; /// BoneSet.skins[ vertex_id ] の頂点座標を使う。
+	               /// (備忘 なんで配列そのものでなくインデックス値で保持してるかというとヴァーテックスオブジェクトとか使い安いように。)
+	SdefFace[] faces; /// マテリアル毎に分類されている。
+
+	/// 法線ベクトルを準備する。
+	void addNormalVector(VERTEX)( VERTEX[] v )
+	{
+		alias pos_attr = AttributeConnector!( VERTEX, VLD_POSITION );
+		alias normal_attr = AttributeConnector!( VERTEX, VLD_NORMAL );
+		static assert( pos_attr.active && normal_attr.active );
+		pos_attr.TYPE v0, v1, v2, n;
+		foreach( f ; faces )
+		{
+			for( size_t i = 0 ; i < f.index.length ; i+=3 )
+			{
+				v0 = pos_attr( v[ f.index[i] ] );
+				v1 = pos_attr( v[ f.index[i+1] ] );
+				v2 = pos_attr( v[ f.index[i+2] ] );
+				n = (v1-v0).cross( v2-v0 );
+
+				normal_attr( v[ f.index[i] ] ) += n;
+				normal_attr( v[ f.index[i+1] ] ) += n;
+				normal_attr( v[ f.index[i+2] ] ) += n;
+			}
+		}
+	}
 }
 
 /*SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS*\
-|*|                                SdefIndex                                 |*|
+|*|                                SdefFace                                  |*|
 \*SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS*/
 /**
  * Bugs:
  *   モデルのスキンはトライアングルのみ。ラインは無視される。
  */
-struct SdefIndex
+struct SdefFace
 {
 	MikotoMaterial material;
-	uint[] faces; /// GL_TRIANGLES;
-	alias faces this;
-
-	this( MikotoMaterial m ){ this.material = m; }
+	uint[] index; /// GL_TRIANGLES;
+	alias index this;
 }
 
 /*FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF*\
@@ -208,30 +284,31 @@ struct SdefIndex
  * MikotoModel から必要な情報を得る。
  * Bugs:
  *   複数のルートボーンがあった場合はどうするのか？$(BR)
- *   → 現状では最初に見つかったルートボーンしか返しません。
+ *   <del>→ 現状では最初に見つかったルートボーンしか返しません。</del>(ver 0.0014以降)$(BR)
+ *   複数のルートボーンを保持した BoneSystem を返すようになりました。
  */
-BoneSet mikotoModelToBoneSet( MikotoModel mm, jstring bone_name = "".j )
+BoneSet!VERTEX mikotoModelToBoneSet(VERTEX)( MikotoModel mm, jstring bone_name = "".j )
 {
 	//           ┌ "sdef:" を除いたスキン名
-	SdefSkin[jstring] sdefs;
-	//          ┌ ObjectChunk 毎に分れている。
-	SdefVertex[][] skins;
+	SdefPart[jstring] sdefs; // アンカーから anchorHoge|SdefName のように対象 SdefPart を指定できる。これを解決する為に使う。
+	//      ┌ ObjectChunk 毎に分れている。
+	VERTEX[][] skins; // BoneSet.skins に格納される。
 	
-	//          ┌─── マテリアルのインデックス値
-	//          ↓    ┌ 対象の sdef 毎に分れている。
+	//          ┌─── ─ マテリアルのインデックス値。binfoのインデックスに一致する。
+	//          │    ┌ 対象の sdef 毎に分れている。sdefsのインデックスに一致する。
 	AnchorFace[int][jstring] anchors;
 
-	//       ┌ マテリアルのインデックス値
+	//       ┌ マテリアルのインデックス値。AnchorFaceのインデックスに一致する。
 	BoneInfo[int] binfo;
 
 	//
-	BoneSet bs;
+	BoneSet!VERTEX bs; // 戻り値
 
 	foreach( skin ; mm.skins )
 	{
-		if     ( skin.name.startsWith( "sdef:".j ) )
+		if( skin.name.startsWith( "sdef:".j ) )
 		{
-			sdefs[ skin.name[ 5 .. $ ] ] = mikotoSkinToSdefSkin( skin, mm.materials, skins );
+			sdefs[ skin.name[ 5 .. $ ] ] = mikotoSkinToSdefPart( skin, mm.materials, skins );
 		}
 		else if( skin.name.startsWith( "bone:".j ) )
 		{
@@ -239,18 +316,18 @@ BoneSet mikotoModelToBoneSet( MikotoModel mm, jstring bone_name = "".j )
 
 			auto bi = mikotoSkinToFlatBoneInfo( skin, mm.materials );
 			fillBoneInfosFamily( bi );
+			BoneInfo[] roots;
+			auto sbi = sortBoneInfo( bi, roots );
 			
-			foreach( i, one ; bi )
+			auto bones = new Bone[ sbi.length ];
+			foreach( i, one ; sbi )
 			{
-				if( null is bs.bsys && null is one.bone && null is one.parent && null is one.big_brother )
-				{
-					Bone[] bones;
-					one.makeBone( skin.vertex, bones, bs.bone_id );
-					bs.bsys = new BoneSystem( bones );
-					for( BoneInfo bi = one ; null !is bi ; bi = bi.little_brother )
-						bs.roots ~= bi.material_name;
-				}
+				bones[i] = one.makeBone( skin.vertex );
+				bs.bone_id[ one.material_name ] = i;
 			}
+
+			bs.bsys = new BoneSystem( bones[ 0 .. roots.length ], bones );
+
 			foreach( i, one ; bi ) if( null !is one.bone ) binfo[i] = one;
 		}
 		else if( skin.name.startsWith( "anchor".j ) )
@@ -265,23 +342,32 @@ BoneSet mikotoModelToBoneSet( MikotoModel mm, jstring bone_name = "".j )
 		}
 	}
 
-	assert( null !is bs.bsys );
+	enforce( null !is bs.bsys );
 
+	// 頂点インデックスをボーンに振り分け
 	foreach( key, skin ; sdefs )
 	{
 		auto anc = anchors.get( key, null );
 		if( null is anc ) continue;
 		setInfluencesSlot( bs.bsys.bones, binfo, anc, skins[ skin.vertex_id ], skin );
 	}
-	bs.bsys.skins = skins;
+	bs.skins = skins;
+
+	// 法線ベクトルを準備
+	alias normal_attr = AttributeConnector!( VERTEX, VLD_NORMAL );
+	static if( normal_attr.active )
+	{
+		foreach( bone ; bs.bsys.bones ) bone.addNormalVector( skins );
+		foreach( skin ; skins ){ foreach( ref v ; skin ){ normal_attr( v ).normalize; } }
+	}
 
 	return bs;
 }
 
 //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
-////                                                                        \\\\
-////                                private                                 \\\\
-////                                                                        \\\\
+//||                                                                        ||\\
+//||                                private                                 ||\\
+//||                                                                        ||\\
 //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
 /*############################################################################*\
 |*#                                                                          #*|
@@ -289,27 +375,32 @@ BoneSet mikotoModelToBoneSet( MikotoModel mm, jstring bone_name = "".j )
 |*#                                                                          #*|
 \*############################################################################*/
 /*FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF*\
-|*|                           mikotoSkinToSdefSkin                           |*|
+|*|                           mikotoSkinToSdefPart                           |*|
 \*FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF*/
 /*
  * Bugs:
  *   ポリラインは無視しています。
  */
-private SdefSkin mikotoSkinToSdefSkin( MikotoSkin skin, MikotoMaterial[] materials, ref SdefVertex[][] skins )
+private SdefPart mikotoSkinToSdefPart(VERTEX)( MikotoSkin skin, MikotoMaterial[] materials, ref VERTEX[][] skins )
 {
-	SdefSkin ss;
+	SdefPart ss;
 	ss.vertex_id = skins.length;
-	auto vert = new SdefVertex[ skin.vertex.length ];
-	foreach( i, ref one ; vert ) one.pos = skin.vertex[i];
+	auto vert = new VERTEX[ skin.vertex.length ];
+	alias aba = AttributeConnector!( VERTEX, VLD_POSITION );
+	static if( aba.active ) foreach( i, ref one ; vert ) aba( one ) = skin.vertex[i];
 
-	ss.faces = new SdefIndex[ skin.faces.length ];
+	ss.faces = new SdefFace[ skin.faces.length ];
+	alias uv_attr = AttributeConnector!( VERTEX, VLD_TEXTURE );
 	foreach( i, ref one ; ss.faces )
 	{
 		one.material = materials[ skin.faces[i].material_id ];
-		one.faces = skin.faces[i].index;
-		if( 0 < skin.faces[i].uv.length )
+		one.index = skin.faces[i].index;
+		static if( uv_attr.active )
 		{
-			foreach( j, idx ; skin.faces[i].index ) vert[ idx ].uv = skin.faces[i].uv[j];
+			if( 0 < skin.faces[i].uv.length )
+			{
+				foreach( j, idx ; skin.faces[i].index ) uv_attr( vert[ idx ] ) = skin.faces[i].uv[j];
+			}
 		}
 	}
 
@@ -319,7 +410,7 @@ private SdefSkin mikotoSkinToSdefSkin( MikotoSkin skin, MikotoMaterial[] materia
 
 /*############################################################################*\
 |*#                                                                          #*|
-|*#                              analyzing bone                              #*|
+|*#                               analyze bone                               #*|
 |*#                                                                          #*|
 \*############################################################################*/
 /*CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC*\
@@ -346,13 +437,15 @@ private class BoneInfo
 
 	BoneInfo parent; // 親ボーン。
 	BoneInfo[] children; // 子ボーン。
-	BoneInfo big_brother; // 兄弟ボーン。軸の原点を共有する。
-	BoneInfo little_brother; // ditto
+	BoneInfo big_brother; // 兄( ファイル上の Material チャンク内で先に出てくるマテリアルを持つボーンが兄)
+	BoneInfo[] brothers;  // 弟たち。
 
 	jstring material_name; // マテリアル名
 
 	Bone bone; // 生成された Bone
 	alias bone this;
+
+	int id; // 親子関係で整列後の0開始の順序
 
 	///
 	this( jstring mname, uint[] v )
@@ -364,31 +457,22 @@ private class BoneInfo
 	/*
 	 * BoneInfo から Bone を生成し、返す。$(BR)
 	 */
-	Bone makeBone( Vector3f[] boneV, ref Bone[] boneStore, ref int[jstring] nameStore )
+	Bone makeBone( Vector3f[] boneV )
 	{
 		if( null !is bone ) return bone;
-		bone = new Bone( boneStore.length, boneV, v[], null !is parent ? parent.bone : null );
-		nameStore[material_name] = bone.id;
-		boneStore ~= bone;
-		foreach( child ; children )
-		{
-			bone.children ~= child.makeBone( boneV, boneStore, nameStore );
-		}
-		if( null !is little_brother )
-		{
-			bone.little_brother = little_brother.makeBone( boneV, boneStore, nameStore );
-			bone.little_brother.big_brother = bone;
-		}
+		bone = new Bone( id, boneV, v[], null !is parent ? parent.bone : null );
+		foreach( child ; children ) bone.children ~= child.makeBone( boneV );
+		foreach( bro ; brothers ) bone.brothers ~= bro.makeBone( boneV );
 		return bone;
 	}
 }
 
 /*FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF*\
-|*|                         mikotoSkinToFlatBoneTree                         |*|
+|*|                         mikotoSkinToFlatBoneInfo                         |*|
 \*FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF*/
 /*
  * オブジェクトチャンクから BoneTree にする。$(BR)
- * BoneTree の親子関係はまだ判明していない状態。
+ * BoneInfo の親子関係はまだ判明していない状態。
  */
 private BoneInfo[int] mikotoSkinToFlatBoneInfo( MikotoSkin skin, MikotoMaterial[] materials )
 {
@@ -426,33 +510,21 @@ private BoneInfo[int] mikotoSkinToFlatBoneInfo( MikotoSkin skin, MikotoMaterial[
 
 	// 浮動ボーンを準備する。
 	// 浮動ボーンは材質に関係なく親子関係が決定されるようである。
-	uint[] lines;
-	foreach( line ; skin.lines ) lines ~= line.index;
-	for( size_t i = 0, counter = 0 ; ; )
+	size_t count = 0; foreach( line ; skin.lines ) count += line.index.length;
+	uint[] lines = new uint[count];
+	count = 0; foreach( line ; skin.lines ) { lines[ count .. count + line.index.length ] = line.index; count += line.index.length; }
+	outloop: for(  ; 1 < lines.length ; lines = lines[ 2 .. $ ] )
 	{
-		bool flag = false;
-		foreach( ref bi ; binfo )
+		foreach( bi ; binfo )
 		{
-			if     ( lines[i] == bi.tip ) { bi.floating_tip ~= lines[i+1]; flag = true; }
-			else if( lines[i+1] == bi.tip ) { bi.floating_tip ~= lines[i]; flag = true; }
-			else
+			if( lines[0] == bi.tip ) { bi.floating_tip ~= lines[1]; break; }
+			if( lines[1] == bi.tip ) { bi.floating_tip ~= lines[0]; break; }
+			for( size_t j = 0 ; j < bi.floating_tip.length ; j++ )
 			{
-				for( size_t j = 0 ; j < bi.floating_tip.length && !flag ; j++ )
-				{
-					if     ( lines[i] == bi.floating_tip[j] ) { bi.floating_tip ~= lines[i+1]; flag = true; }
-					else if( lines[i+1] == bi.floating_tip[j] ) { bi.floating_tip ~= lines[i]; flag = true; }
-				}
+				if( lines[0] == bi.floating_tip[j] ) { bi.floating_tip ~= lines[1]; continue outloop; }
+				if( lines[1] == bi.floating_tip[j] ) { bi.floating_tip ~= lines[0]; continue outloop; }
 			}
-			if( flag ) break;
 		}
-
-		if( flag ){ lines = lines[ 0 .. i ] ~ lines[ i+2 .. $ ]; counter++; }
-		else i += 2;
-
-		if     ( i+1 < lines.length ) { }
-		else if( lines.length < 2 ) break;
-		else if( 0 == counter ) break;
-		else { i = 0; counter = 0; }
 	}
 
 	return binfo;
@@ -462,49 +534,64 @@ private BoneInfo[int] mikotoSkinToFlatBoneInfo( MikotoSkin skin, MikotoMaterial[
 |*|                           fillBoneInfosFamily                            |*|
 \*FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF*/
 /*
- * BoneTree の家族関係を解決する。
+ * BoneInfo の家族関係を解決する。
  *
  * Bugs:
- *   同じモデルファイルに複数のルートボーンがあった場合は、最初のルートボーンのみを返す。
+ *   同じモデルファイルに複数のルートボーンがあった場合は、<del>最初のルートボーンのみを返す。</del>全部返す
  *   ※ ルートボーンとは、ボーンの家族関係の最上位であると定義している。$(BR)
  *      ボーンがその原点(最長辺の対角)を他のボーンの原点と共有している場合、家族関係は兄弟とされ、
  *      その序列はおそらくパーサの実装に拠る。$(BR)
- *      現状、ファイル上で最初に出現した方が兄になっていると思われる。$(BR)
+ *      現状、ファイル上で先に出現したマテリアル名を持つ方が兄になっていると思われる。$(BR)
  *
- *   ボーンが輪のように閉じ、序列をつけられない場合、null を返す。
+ *   ボーンが輪のように閉じ、序列をつけられない場合、<del>null を返す。</del>
+ *   輪を成しているボーンのうち、ファイル上で最初に出現したボーンと最後のボーンの間で親子関係を切っている。
  */
 private void fillBoneInfosFamily( BoneInfo[int] binfo )
 {
-	void fillChildren( BoneInfo bt )
+	void fillChildren( int m, BoneInfo bt )
 	{
-		if( 0 < bt.children.length ) return;
-		foreach( one ; binfo )
+		loop: foreach( om, one ; binfo )
 		{
-			if     ( bt is one ){ }
-			else if( bt.tip == one.zero ){ bt.children ~= one; one.parent = bt; }
-			else if( bt.zero == one.zero )
+			if( bt is one ) continue;
+			if( bt.tip == one.zero && null is one.parent ){ bt.children ~= one; one.parent = bt; continue; }
+			if( bt.zero == one.zero && m < om && null is one.big_brother ) { one.big_brother = bt; bt.brothers ~= one;  continue; }
+			foreach( ft ; bt.floating_tip )
 			{
-				if( null is bt.little_brother && null is one.big_brother && one.little_brother !is bt )
-				{
-					bt.little_brother = one;
-					one.big_brother = bt;
-				}
-			}
-			else
-			{
-				foreach( ft ; bt.floating_tip )
-				{
-					if( ft == one.zero ){ bt.children ~= one; one.parent = bt; break; }
-				}
+				if( ft == one.zero && null is one.parent ){ bt.children ~= one; one.parent = bt; continue loop; }
 			}
 		}
 	}
-	foreach( one ; binfo ) fillChildren( one );
+	foreach( m, one ; binfo ) fillChildren( m, one );
+}
+
+/*FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF*\
+|*|                              sortBoneIinfo                               |*|
+\*FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF*/
+// 親子関係でソート。ルートボーンが先頭にくる。
+// 先祖 < 子孫 になるようにする。イトコ関係のボーンの順列は未定義
+private BoneInfo[] sortBoneInfo( BoneInfo[int] binfo, ref BoneInfo[] root )
+{
+	BoneInfo[] child, all;
+
+	foreach( one ; binfo ) if( null is one.parent && null is one.big_brother ) root ~= one;
+
+	void addChild( BoneInfo bi )
+	{
+		child ~= bi.children;
+		child ~= bi.brothers;
+		foreach( c ; bi.children ) addChild( c );
+		foreach( b ; bi.brothers ) addChild( b );
+	}
+
+	foreach( one ; root ) addChild( one );
+	all = root ~ child;
+	foreach( i, one ; all ) one.id = i;
+	return all;
 }
 
 /*############################################################################*\
 |*#                                                                          #*|
-|*#                             analyzing anchor                             #*|
+|*#                              analyze anchor                              #*|
 |*#                                                                          #*|
 \*############################################################################*/
 /*CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC*\
@@ -542,7 +629,7 @@ private struct AnchorFace
 	 * ( ↑ この実装が最も本家に近いように思われる。OpenRDB のソースを読まねば。)$(BR)
 	 * ついでに、ボーンの OBB も作っておく。$(BR)
 	 */
-	void ready( SdefVertex[] vertex, BoneInfo bi, InfluenceSet[][] influence )
+	void ready(VERTEX)( VERTEX[] vertex, BoneInfo bi, InfluenceSet[][] influence )
 	{
 		auto arr = Arrowf( [ 0.0f, 0, 0 ], Vector3f( 0, 0, 1 ) * bi.bone.localize );
 		float max_x, max_y, max_z, min_x, min_y, min_z;
@@ -550,14 +637,15 @@ private struct AnchorFace
 		min_x = min_y = min_z = float.max;
 		Vector3f vec;
 
+		alias pos_attr = AttributeConnector!( VERTEX, VLD_POSITION );
 		foreach( i, v ; vertex )
 		{
-			arr.p = v.pos;
+			arr.p = pos_attr( v );
 			auto inf = arr.depthIn( this.vertex, faces );
 			if( 0 < inf )
 			{
 				influence[ i ] ~= InfluenceSet( bi, inf );
-				vec = bi.bone.localize * v.pos;
+				vec = bi.bone.localize * pos_attr( v );
 				max_x = max( vec.x, max_x ); max_y = max( vec.y, max_y ); max_z = max( vec.z, max_z );
 				min_x = min( vec.x, min_x ); min_y = min( vec.y, min_y ); min_z = min( vec.z, min_z );
 			}
@@ -582,9 +670,20 @@ private struct AnchorFace
  * OpenRDB では「最大4つのアンカーの影響を受けることができる」らしいのだが、4つもいるかなあ？$(BR)
  * スカートとか布みたいなメッシュを考えると余裕でいりそうだが。$(BR)
  */
-private void setInfluencesSlot( Bone[] bones, BoneInfo[int] binfo, AnchorFace[int] anchors, SdefVertex[] vertex
-                              , SdefSkin skin )
+private void setInfluencesSlot(VERTEX)( Bone[] bones, BoneInfo[int] binfo, AnchorFace[int] anchors, VERTEX[] vertex
+                                      , SdefPart skin )
 {
+	alias matrix_attr = AttributeConnector!( VERTEX, VLD_MATRIX );
+	alias influence_attr = AttributeConnector!( VERTEX, VLD_INFLUENCE );
+
+	static if( matrix_attr.active )
+	{
+		static assert( influence_attr.active );
+		static assert( is( matrix_attr.TYPE : int[] ) && is( influence_attr.TYPE : float[] ) && matrix_attr.TYPE.length == influence_attr.TYPE.length );
+		enum COUNT = matrix_attr.TYPE.length;
+	}
+	else enum COUNT = 1;
+
 	// 影響度を設定
 	InfluenceSet[][] variable_influences = new InfluenceSet[][vertex.length];
 	foreach( key, bi ; binfo )
@@ -593,63 +692,70 @@ private void setInfluencesSlot( Bone[] bones, BoneInfo[int] binfo, AnchorFace[in
 		anchors[key].ready( vertex, bi, variable_influences );
 	}
 	catchLonelyVertex( vertex, binfo, variable_influences );
-	auto ninf = normalizeInfluences( variable_influences );
+	auto ninf = normalizeInfluences!COUNT( variable_influences );
 
-	foreach( i, ref one ; vertex )
+// ┌───── dummy
+// │  ┌─── neighbours.id
+// │  │   ┌- 対象 Bone.id
+	int[int][int] neighbours;
+	void addFace( Bone b, ref MikotoMaterial material, uint[] idxs )
 	{
-		if( null is ninf[i][0].bi ) continue;
-		one.mat[0] = ninf[i][0].id;
-		one.influence[0] = ninf[i][0].influence;
-		if( null is ninf[i][1].bi ) continue;
-		one.mat[1] = ninf[i][1].id;
-		one.influence[1] = ninf[i][1].influence;
-		if( null is ninf[i][2].bi ) continue;
-		one.mat[2] = ninf[i][2].id;
-		one.influence[2] = ninf[i][2].influence;
-		if( null is ninf[i][3].bi ) continue;
-		one.mat[3] = ninf[i][3].id;
-		one.influence[3] = ninf[i][3].influence;
-	}
+		if     ( 0 == b.parts.length || b.parts[$-1].vertex_id != skin.vertex_id )
+			b.parts ~= SdefPart( skin.vertex_id, [ SdefFace( material, idxs ) ] );
+		else if( 0 == b.parts[$-1].faces.length || b.parts[$-1].faces[$-1].material !is material )
+			b.parts[$-1].faces ~= SdefFace( material, idxs );
+		else
+			b.parts[$-1].faces[$-1] ~= idxs;
 
-	// 各ボーンに分配
-	// インデックス値 == 0 の時 → ルートボーンであり、値が大きくなる程子孫になる。
-	// 最もインデックス値が大きいボーンがそのトライアングルを所有するものとする。
-	int littleBone( ref in SdefVertex sv )
-	{
-		int i = -1;
-		if( i < sv.mat[0] ) i = sv.mat[0];
-		if( i < sv.mat[1] ) i = sv.mat[1];
-		if( i < sv.mat[2] ) i = sv.mat[2];
-		if( i < sv.mat[3] ) i = sv.mat[3];
-		return i;
-	}
-
-	int mostLittleBone( ref in SdefVertex sv1, ref in SdefVertex sv2, ref in SdefVertex i3 )
-	{
-		auto b = littleBone( sv1 );
-		auto tb = littleBone( sv2 );
-		if( b < tb ) b = tb;
-		tb = littleBone( i3 );
-		if( b < tb ) b = tb;
-		return b;
-	}
-
-	foreach( face ; skin.faces )
-	{
-		for( size_t i = 0 ; i+3 <= face.length ; i+=3 )
+		// 干渉しあうアンカーの列挙
+		foreach( i ; idxs )
 		{
-			auto bidx = mostLittleBone( vertex[face[i]], vertex[face[i+1]], vertex[face[i+2]] );
-			if( bidx < 0 || bones.length <= bidx ) continue;
-			auto b = bones[ bidx ];
-			if( 0 == b.parts.length || b.parts[$-1].vertex_id != skin.vertex_id )
-				b.parts ~= SdefSkin( skin.vertex_id, null );
-			if( 0 == b.parts[$-1].faces.length || b.parts[$-1].faces[$-1].material !is face.material )
-				b.parts[$-1].faces ~= SdefIndex( face.material );
-			b.parts[$-1].faces[$-1] ~= face[ i .. i+3 ];
+			for( size_t j = 0 ; j < COUNT ; j++ )
+			{
+				if     ( null is ninf[i][j] ) break;
+				else if( ninf[i][j].id != b.id ) neighbours[ b.id ][ ninf[i][j].id ] = 1;
+			}
 		}
 	}
 
+	int bidx = -1;
+	foreach( face ; skin.faces )
+	{
+		for( size_t i = 0, j = 0 ; i+3 <= face.length ; i+=3 )
+		{
+			assert( null !is ninf[ face[i] ][0].bi );
+			auto mlb = ninf[face[i]][0].id;
+			if     ( mlb < 0 || bones.length <= mlb ) continue;
+			else if( i == j ) bidx = mlb;
+			else if( face.length < i+6 ) { addFace( bones[bidx], face.material, face[ j .. i + 3 ] ); break; }
+			else if( bidx != mlb )
+			{
+				addFace( bones[bidx], face.material, face[ j .. i ] );
+				j = i;
+				bidx = mlb;
+			}
+		}
+	}
+
+	foreach( id, neighbour ; neighbours )
+	{
+		foreach( n, dummy ; neighbour ) bones[id].neighbours ~= bones[n];
+	}
+
+	static if( matrix_attr.active )
+	{
+		foreach( i, ref one ; vertex )
+		{
+			for( size_t j = 0 ; j < COUNT ; j++ )
+			{
+				if( null is ninf[i][j].bi ) break;
+				matrix_attr( one )[j] = ninf[i][j].id;
+				influence_attr( one )[j] = ninf[i][j].influence;
+			}
+		}
+	}
 }
+
 
 /*SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS*\
 |*|                               InfluenceSet                               |*|
@@ -671,9 +777,11 @@ private struct InfluenceSet
  * 「アンカーに含まれていない頂点は、最寄りのボーンの影響を受ける」らしい。$(BR)
  * ボーンの原点までの距離で比較し、最寄りのボーンを探している。
  */
-private void catchLonelyVertex( SdefVertex[] vertex, BoneInfo[int] binfo, InfluenceSet[][] influence )
+private void catchLonelyVertex(VERTEX)( VERTEX[] vertex, BoneInfo[int] binfo, InfluenceSet[][] influence )
 {
-	BoneInfo getNearestBone( ref const(Vector3f) pos )
+	alias pos_attr = AttributeConnector!( VERTEX, VLD_POSITION );
+	static assert( pos_attr.active );
+	BoneInfo getNearestBone( ref const(pos_attr.TYPE) pos )
 	{
 		BoneInfo result = null;
 		float dist = float.max;
@@ -689,7 +797,7 @@ private void catchLonelyVertex( SdefVertex[] vertex, BoneInfo[int] binfo, Influe
 	{
 		if( 0 == inf.length )
 		{
-			auto nb = getNearestBone( vertex[i].pos );
+			auto nb = getNearestBone( pos_attr(vertex[i]) );
 			if( null !is nb ) inf ~= InfluenceSet( nb, 1.0 );
 		}
 	}
@@ -699,19 +807,18 @@ private void catchLonelyVertex( SdefVertex[] vertex, BoneInfo[int] binfo, Influe
 |*|                           normalizeInfluences                            |*|
 \*FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF*/
 /*
- * 影響度の大きい方から4つを選択し、影響度を正規化(その頂点について合計すると 1 になるように)する。
+ * 影響度の大きい方からCOUNT個を選択し、影響度を正規化(その頂点について合計すると 1 になるように)する。
  */
-private InfluenceSet[4][] normalizeInfluences( InfluenceSet[][] inf )
+private InfluenceSet[COUNT][] normalizeInfluences( size_t COUNT )( InfluenceSet[][] inf )
 {
-	InfluenceSet[4][] result = new InfluenceSet[4][ inf.length ];
+	InfluenceSet[COUNT][] result = new InfluenceSet[COUNT][ inf.length ];
 	float total;
 
 	foreach( i, one ; inf )
 	{
 		sort!"a.influence >= b.influence"( one );
 		total = 0.0;
-
-		for( size_t j = 0 ; j < 4 && j < one.length ; j++ )
+		for( size_t j = 0 ; j < COUNT && j < one.length ; j++ )
 		{
 			result[i][j] = one[j];
 			total += one[j].influence;
@@ -719,7 +826,7 @@ private InfluenceSet[4][] normalizeInfluences( InfluenceSet[][] inf )
 		if( 0.0 == total || float.nan is total ) continue;
 		else total = 1 / total;
 
-		for( size_t j = 0 ; j < 4 ; j++ ) result[i][j].influence *= total;
+		for( size_t j = 0 ; j < COUNT ; j++ ) result[i][j].influence *= total;
 	}
 	return result;
 }
@@ -738,7 +845,7 @@ void main()
 
 	auto bid = bs.bone_id[ "LegB[L]".j ];
 //	writeln( bs.bsys.bones[i].parts.dump_members( 3, 20 ) );
-//*/
+/*/
 	foreach( i, b ; bs.bsys.bones )
 	{
 		writeln( i, " : ", b.parts.length );

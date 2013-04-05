@@ -14,32 +14,22 @@ DDOC = <?xml version="1.0" encoding="utf-8" ?>
   </body>
 </html>
 
-DDOC_DECL = $(DT <span class="decl">$0</span>)
-
-DDOC_PSYMBOL = <span class="psymbol">$0</span>
-
+D_PARAM = <span class='param'>$0</span>
+D_STRING = <q>$0</q>
+D_KEYWORD = <span class='dkeyword'>$0</span>
+D_COMMENT = <span class='dcomment'>$0</span>
+DDOC_DECL = $(DT <span class='decl'>$0</span>)
+DDOC_PSYMBOL = <span class='psymbol'>$0</span>
 DDOC_MEMBERS = $(DL $0)
-
-DDOC_PARAM = <span class="param">$0</span>
-
-DDOC_SUMMARY = <p class="summary-sec">$0</p>
-
-DDOC_VERSION = <span class="summary-header-sec version-sec">$0</span>$(BR)
-
-DDOC_DATE = <span class="summary-header-sec date-sec">$0</span>$(BR)
-
-DDOC_AUTHORS = <span class="summary-header-sec authors-sec">$0</span>$(BR)
-
-DDOC_LICENSE = <span class="summary-header-sec license-sec">$0</span>$(BR)
-
-DDOC_MEMBERS = <dl class="members-sec">$0</dl>
-
-DDOC_MODULE_MEMBERS = <dl class="module-members-sec">$0</dl>
-
-DDOC_KEYWORD = <span class="dkeyword">$0</span>
-
-DDOC_PARAMS = $(B Params:)$(BR)<table border="1" frame="void" rules="rows" class="params">$0</table>$(BR)
-
-DDOC_PARAM_ID = <td class="params_id">$0</td>
-
-DDOC_BUGS = <p class="bug-sec">$0</p>
+DDOC_PARAM = <span class='param'>$0</span>
+DDOC_SUMMARY = <p class='summary-sec'>$0</p>
+DDOC_VERSION = <span class='summary-header-sec version-sec'>$0</span>$(BR)
+DDOC_DATE = <span class='summary-header-sec date-sec'>$0</span>$(BR)
+DDOC_AUTHORS = <span class='summary-header-sec authors-sec'>$0</span>$(BR)
+DDOC_LICENSE = <span class='summary-header-sec license-sec'>$0</span>$(BR)
+DDOC_MEMBERS = <dl class='members-sec'>$0</dl>
+DDOC_MODULE_MEMBERS = <dl class='module-members-sec'>$0</dl>
+DDOC_KEYWORD = <span class='dkeyword'>$0</span>
+DDOC_PARAMS = $(B Params:)$(BR)<table border='1' cellpadding='8' cellspacing='0' frame='void' rules='rows' class='params'>$0</table>$(BR)
+DDOC_PARAM_ID = <td class='params_id'>$0</td>
+DDOC_BUGS = <p class='bug-sec'>$0</p>

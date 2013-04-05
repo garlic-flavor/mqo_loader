@@ -1,9 +1,9 @@
-/**
- * Version:      0.0013(dmd2.060)
- * Date:         2012-Aug-18 21:27:11
+/** DerelictSDL2 と一緒に DerelictGL[3] を使う。
+ * Version:      0.0014(dmd2.062)
+ * Date:         2013-Apr-06 01:08:29
  * Authors:      KUMA
  * License:      CC0
-*/
+ */
 module sworks.compo.sdl.gl;
 
 import std.exception;
@@ -13,28 +13,7 @@ public import sworks.compo.gl.texture_2drgba32;
 public import sworks.compo.sdl.util;
 public import sworks.compo.sdl.image;
 
-SDLExtInitDel getGLInitializer( bool double_buffer, int depth_size, int red_size, int green_size
-                              , int blue_size, int alpha_size, int samples = 0 )
-{
-	return
-	{
-		DerelictGL3.load();
-		SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, double_buffer ? 1 : 0 );
-		SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE, depth_size );
-		SDL_GL_SetAttribute( SDL_GL_RED_SIZE, red_size );
-		SDL_GL_SetAttribute( SDL_GL_GREEN_SIZE, green_size );
-		SDL_GL_SetAttribute( SDL_GL_BLUE_SIZE, blue_size );
-		SDL_GL_SetAttribute( SDL_GL_ALPHA_SIZE, alpha_size );
-
-		if( 0 < samples )
-		{
-			SDL_GL_SetAttribute( SDL_GL_MULTISAMPLEBUFFERS, 1 );
-			SDL_GL_SetAttribute( SDL_GL_MULTISAMPLESAMPLES, samples );
-		}
-		return {};
-	};
-}
-
+/// テクスチャ読み込み。
 Texture2DRGBA32 loadTexture2DRGBA32( const(char)* filename )
 {
 	auto s = loadImageRGBA32( filename );
@@ -42,6 +21,8 @@ Texture2DRGBA32 loadTexture2DRGBA32( const(char)* filename )
 	return new Texture2DRGBA32( s.w, s.h, s.pixels );
 }
 
+/// テクスチャ付き描画に。
+/// $(D_PARAM draw) に関しては sworks.compo.gl.glsl を参照のこと。
 void delegate() drawSystem( void delegate() draw, ShaderProgram program, Texture2DRGBA32[string] tex )
 {
 	struct _Tex{ GLuint id; GLuint location; };

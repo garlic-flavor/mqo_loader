@@ -1,15 +1,17 @@
 /** BoneSystem を動かす。
- * Version:      0.0013(dmd2.060)
- * Date:         2012-Aug-18 21:27:11
+ * Version:      0.0014(dmd2.062)
+ * Date:         2013-Apr-06 01:08:29
  * Authors:      KUMA
  * License:      CC0
  */
 module sworks.mqo.mikoto_motion;
 
+import std.algorithm;
 import sworks.compo.util.matrix;
 import sworks.mqo.misc;
 import sworks.mqo.mkm;
 import sworks.mqo.bone_system;
+debug import std.stdio;
 
 /*CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC*\
 |*|                               ActorMotion                                |*|
@@ -21,16 +23,18 @@ class ActorMotion
 {
 	TranslateMotion world_translate; /// キャラクタのワールド座標を決定する。
 	RotateMotion world_rotate; /// ditto
-	TranslateMotion translation; /// ルートボーンのみ平行移動がある。
-	RotateMotion[] rotation; /// ルートボーン以外は回転運動のみ。
+	TranslateMotion[] translation; /// <del>ルートボーンのみ平行移動がある。</del>ウソ
+	RotateMotion[] rotation; /// <del>ルートボーン以外は回転運動のみ。</del>ウソ。全てのボーンは平行移動できる。
 	float original_duration; /// 一連のモーションにかかる時間(sec)
 
 	///
-	this( float dur, TranslateMotion wt, RotateMotion wr, TranslateMotion tm, RotateMotion[] rm )
+	this( float dur, TranslateMotion wt, RotateMotion wr, TranslateMotion[] tm, RotateMotion[] rm )
 	{
 		this.original_duration = dur;
 		this.world_translate = wt;
 		this.world_rotate = wr;
+
+		assert( tm.length == rm.length );
 		this.translation = tm;
 		this.rotation = rm;
 	}
@@ -40,9 +44,8 @@ class ActorMotion
 	{
 		bs.world_translate = world_translate;
 		bs.world_rotate = world_rotate;
-		bs.root_translate = translation;
 		assert( rotation.length == bs.bones.length );
-		foreach( i, one ; bs.bones ) one.motion = rotation[i];
+		foreach( i, one ; bs.bones ){ one.rotation = rotation[i]; one.translation = translation[i]; }
 	}
 }
 
@@ -54,15 +57,14 @@ class ActorMotion
  * Params:
  *   target_actor = 対象となるキャラの名前。これ以外のキャラ用のモーションは無視される。
  */
-ActorMotion motionChunkToActorMotion( MotionChunk chunk, string target_actor, ref in BoneSet bs
-                                    , string delegate(jstring) toUTF8  )
+ActorMotion motionChunkToActorMotion(VERTEX)( MotionChunk chunk, string target_actor, ref in BoneSet!VERTEX bs
+                                            , string delegate(jstring) toUTF8  )
 {
 	float duration = cast(float)chunk.endframe / 60.0f;
 	TranslateMotion wt;
 	RotateMotion wr;
-	TranslateMotion tm;
+	TranslateMotion[] tm;
 	RotateMotion[] rm;
-
 
 	foreach( jkey, vec ; chunk.vector )
 	{
@@ -83,20 +85,23 @@ ActorMotion motionChunkToActorMotion( MotionChunk chunk, string target_actor, re
 	}
 	if( null !is motion )
 	{
-		foreach( root_name ; bs.roots )
-		{
-			auto key = "j_".j ~ root_name;
-			if( key in motion.vector ){ tm = new TranslateMotion( motion.vector[key].translation ); break; }
-		}
-		if( null is tm ) tm = new TranslateMotion();
-
+		tm = new TranslateMotion[ bs.bsys.bones.length ];
 		rm = new RotateMotion[ bs.bsys.bones.length ];
 		foreach( key, q ; motion.quaternion )
 		{
 			if( key !in bs.bone_id ) continue;
+			
 			rm[ bs.bone_id[ key ] ] = new RotateMotion( q.rotation );
 		}
 		foreach( ref one ; rm ) if( null is one ) one = new RotateMotion();
+		foreach( key, t ; motion.vector )
+		{
+			if( !key.startsWith( "j_" ) ) continue;
+			key = key[ 2 .. $ ];
+			if( key !in bs.bone_id ) continue;
+			tm[ bs.bone_id[ key ] ] = new TranslateMotion( t.translation );
+		}
+		foreach( ref one ; tm ) if( null is one ) one = new TranslateMotion();
 	}
 
 	return new ActorMotion( duration, wt, wr, tm, rm );
@@ -187,17 +192,18 @@ ActorMotion generateMorphingMotion( ActorMotion a1, float f1, ActorMotion a2, fl
 	float[] f = [ 0.0, 1.0 ];
 	TranslateMotion wtm;
 	RotateMotion wrm;
-	TranslateMotion tm;
+	TranslateMotion[] tm;
 	RotateMotion[] rm;
 
 	wtm = new TranslateMotion( f, [ a1.world_translate[f1], a2.world_translate[f2] ] );
 	wrm = new RotateMotion( f, [ a1.world_rotate[f1], a2.world_rotate[f2] ] );
 
-	tm = new TranslateMotion( f, [ a1.translation[f1], a2.translation[f2] ] );
+	tm = new TranslateMotion[ a1.translation.length ];
 	rm = new RotateMotion[ a1.rotation.length ];
 
 	for( size_t i = 0 ; i < rm.length ; i++ )
 	{
+		tm[i] = new TranslateMotion( f, [ a1.translation[i][f1], a2.translation[i][f2] ] );
 		rm[i] = new RotateMotion( f, [ a1.rotation[i][f1], a2.rotation[i][f2] ] );
 	}
 

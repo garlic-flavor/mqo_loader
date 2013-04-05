@@ -1,34 +1,60 @@
 /**
- * Version:      0.0013(dmd2.060)
- * Date:         2012-Aug-18 21:27:11
+ * Version:      0.0014(dmd2.062)
+ * Date:         2013-Apr-06 01:08:29
  * Authors:      KUMA
  * License:      CC0
 */
 module sworks.compo.util.dump_members;
 
 import std.array, std.ascii, std.conv, std.range, std.traits;
+import sworks.compo.util.strutil;
+debug import std.stdio;
+
+Appender!string add( Appender!string buf, string msg )
+{
+	buf.put( msg );
+	return buf;
+}
+
+Appender!string ln( Appender!string buf, string msg )
+{
+	buf.put( msg );
+	buf.put( newline );
+	return buf;
+}
+
+// ???
+Appender!string tabAdd( uint TAB_WIDTH )( Appender!string buf, uint indent, string msg )
+{
+	buf.put( newline );
+	buf.put( ' '.repeat.take( indent * TAB_WIDTH ) );
+	buf.put( msg );
+	return buf;
+}
+
+
+Appender!string dummy_call(uint TAB_SIZE)(Appender!string buf, string msg ){ buf.put( msg ); return buf; }
 
 /// Dのオブジェクト -> メンバ名とその内容を表す文字列 デバグ用
 string dump_members( THIS )( THIS t, uint max_indent = 12, uint max_array = 64, uint indent = 0 )
 {
-	enum TAB_SIZE = 4;
+	enum TAB_WIDTH = 4;
 	auto result = appender!string();
 
+	string call(U)( U u ){ return dump_members( u, max_indent, max_array, indent ); }
+	Appender!string tab( string msg ){ return tabAdd!TAB_WIDTH( result, indent, msg ); }
+
+	
 	static if     ( is( THIS == class ) )
 	{
 		if( null !is t )
 		{
-			result.put( newline );
-			result.put( take( repeat(' '), indent * TAB_SIZE ) );
-			result.put( THIS.stringof );
-			result.put( newline );
-			result.put( take( repeat(' '), indent * TAB_SIZE ) );
-			result.put( "{" );
+			tab( THIS.stringof );
+			tab( "{" );
 			indent++;
-			result.put( newline );
 			static if( __traits( hasMember, t, "dump" ) )
 			{
-				result.put( t.dump( max_indent, max_array, indent ) );
+				tab( t.dump( max_indent, max_array, indent ) );
 			}
 			else
 			{
@@ -38,20 +64,14 @@ string dump_members( THIS )( THIS t, uint max_indent = 12, uint max_array = 64, 
 					{
 						static if( __traits( compiles, __traits( getMember, t, one ).offsetof ) )
 						{
-							result.put( take( repeat(' '), indent * TAB_SIZE ) );
-							result.put( one );
-							result.put( " = " );
-							result.put( dump_members( __traits( getMember, t, one ), max_indent, max_array, indent ) );
-							result.put( newline );
+							tab( one ).add( " = " ).add( call( __traits( getMember, t, one ) ) );
 						}
 					}
 				}
-				else result.put( " ... " );
+				else tab( " ... " );
 			}
 			indent--;
-			result.put( newline );
-			result.put( take( repeat( ' '), indent * TAB_SIZE ) );
-			result.put( "}" );
+			tab( "}" );
 		}
 		else result.put( "null" );
 	}
@@ -60,28 +80,23 @@ string dump_members( THIS )( THIS t, uint max_indent = 12, uint max_array = 64, 
 		static if( __traits( hasMember, t, "dump" ) )
 		{
 			indent++;
-			result.put( t.dump( max_indent, max_array, indent ) );
+			tab( t.dump( max_indent, max_array, indent ) );
 			indent--;
 		}
 		else
 		{
-			if( null !is t ) result.put( THIS.stringof );
+			if( null !is t ) tab( THIS.stringof );
 			else result.put( "null" );
 		}
 	}
 	else static if( is( THIS == struct ) )
 	{
-		result.put( newline );
-		result.put( take( repeat(' '), indent * TAB_SIZE ) );
-		result.put( THIS.stringof );
-		result.put( newline );
-		result.put( take( repeat(' '), indent * TAB_SIZE ) );
-		result.put( "{" );
-		result.put( newline );
+		tab( THIS.stringof );
+		tab( "{" );
 		indent++;
 		static if( __traits( hasMember, t, "dump" ) )
 		{
-			result.put( t.dump( max_indent, max_array, indent ) );
+			tab( t.dump( max_indent, max_array, indent ) );
 		}
 		else
 		{
@@ -91,24 +106,22 @@ string dump_members( THIS )( THIS t, uint max_indent = 12, uint max_array = 64, 
 				{
 					static if( __traits( compiles, __traits( getMember, t, one ).offsetof ) )
 					{
-						result.put( take( repeat(' '), indent * TAB_SIZE ) );
-						result.put( one );
-						result.put( " = " );
-						result.put( dump_members( __traits( getMember, t, one ), max_indent, max_array, indent ) );
-						result.put( newline );
+						tab( one ).add( " = " ).add( call( __traits( getMember, t, one ) ) );
 					}
 				}
 			}
-			else result.put( " ... " );
-			result.put( take( repeat(' '), indent * TAB_SIZE ) );
+			else tab( " ... " );
 		}
 		indent--;
-		result.put( newline ); result.put( take( repeat(' '), indent * TAB_SIZE ) );
-		result.put( "}" );
+		tab( "}" );
 	}
 	else static if( isSomeString!THIS )
 	{
 		result.put( t.to!string );
+	}
+	else static if( is( THIS : const(jchar)[] ) )
+	{
+		result.put( t.c );
 	}
 	else static if( is( THIS T : T[] ) )
 	{
@@ -119,8 +132,7 @@ string dump_members( THIS )( THIS t, uint max_indent = 12, uint max_array = 64, 
 			foreach( counter, one ; t )
 			{
 				if( max_array < counter ) { result.put( " ... " ); break; }
-				result.put( one.dump_members( max_indent, max_array, indent ) );
-				result.put( " " );
+				result.add( call( one ) ).add( " " );
 			}
 		}
 		else result.put( " ... " );
@@ -137,10 +149,7 @@ string dump_members( THIS )( THIS t, uint max_indent = 12, uint max_array = 64, 
 			foreach( key, one ; t )
 			{
 				if( max_array < counter ) { result.put( " ... " ); break; }
-				result.put( key.dump_members( max_indent, max_array, indent ) );
-				result.put( " : " );
-				result.put( one.dump_members( max_indent, max_array, indent ) );
-				result.put( ", " );
+				result.add( call( key ) ).add( " : " ).add( call( one ) ).add( ", " );
 				counter++;
 			}
 		}
@@ -150,7 +159,7 @@ string dump_members( THIS )( THIS t, uint max_indent = 12, uint max_array = 64, 
 	}
 	else static if( is( THIS T : T* ) )
 	{
-		if( null !is t ) return (*t).dump_members( max_indent, max_array, indent );
+		if( null !is t ) return call(*t);
 		else return "null";
 	}
 	else result.put( t.to!string );

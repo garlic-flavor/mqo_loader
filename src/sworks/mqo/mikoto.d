@@ -1,6 +1,6 @@
 /** 機能の基本となる(予定)のクラス MikotoActor を提供する。
- * Version:      0.0013(dmd2.060)
- * Date:         2012-Aug-18 21:27:11
+ * Version:      0.0014(dmd2.062)
+ * Date:         2013-Apr-06 01:08:29
  * Authors:      KUMA
  * License:      CC0
  */
@@ -8,7 +8,6 @@ module sworks.mqo.mikoto;
 
 import std.algorithm, std.exception, std.file, std.math, std.path;
 import sworks.compo.util.matrix;
-import sworks.mqo.parser_core;
 import sworks.mqo.parser;
 public import sworks.mqo.misc;
 public import sworks.mqo.mqo;
@@ -31,9 +30,10 @@ debug import sworks.compo.util.dump_members;
 /**
  * 最終的にはこのクラスに全ての機能がカプセル化される予定。
  */
-class MikotoActor
+class MikotoActor(VERTEX)
 {
 	string name; /// キャラの名前
+	VERTEX[][] skins; ///
 	BoneSystem bsys; /// ボーン
 
 	ActorMotion[string] motion; /// モーション
@@ -54,7 +54,7 @@ class MikotoActor
 	 */
 	void loadFromFiles( string delegate(jstring) toUTF8, string[] files ... )
 	{
-		BoneSet bset;
+		BoneSet!VERTEX bset;
 		foreach( file ; files )
 		{
 			auto ext = file.extension;
@@ -157,18 +157,19 @@ class MikotoActor
 /*FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF*\
 |*|                               loadFromMQO                                |*|
 \*FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF*/
-private void loadFromMQO( MikotoActor ma, string mqo_file, ref BoneSet bs )
+private void loadFromMQO(VERTEX)( MikotoActor!VERTEX ma, string mqo_file, ref BoneSet!VERTEX bs )
 {
 	auto mqo = load!MQObject( mqo_file );
 	auto mm = mqoToMikotoModel( mqo );
-	bs = mikotoModelToBoneSet( mm );
+	bs = mikotoModelToBoneSet!VERTEX( mm );
 	ma.bsys = bs.bsys;
+	ma.skins = bs.skins;
 }
 
 /*FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF*\
 |*|                               loadFromMKM                                |*|
 \*FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF*/
-private void loadFromMKM( MikotoActor ma, string file, ref BoneSet bs, string delegate(jstring) toUTF8 )
+private void loadFromMKM(VERTEX)( MikotoActor!VERTEX ma, string file, ref BoneSet!VERTEX bs, string delegate(jstring) toUTF8 )
 {
 	auto mkm = load!MKMotion( file );
 	foreach( motion_name, chunk ; mkm.motion )
@@ -182,7 +183,7 @@ private void loadFromMKM( MikotoActor ma, string file, ref BoneSet bs, string de
 /*FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF*\
 |*|                                loadFromMKS                               |*|
 \*FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF*/
-private void loadFromMKS( MikotoActor ma, string file, ref BoneSet bs, string delegate(jstring) toUTF8 )
+private void loadFromMKS(VERTEX)( MikotoActor!VERTEX ma, string file, ref BoneSet!VERTEX bs, string delegate(jstring) toUTF8 )
 {
 	auto mks = load!MKScene( file );
 	if( null is ma.bsys )

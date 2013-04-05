@@ -215,12 +215,31 @@ pre.d_code
 		color: #23ad7b;
 }
 
-pre.d_code > q
+q
 {
-		color: #f17161;
+		color: #f14131;
 		quotes: '"' '"';
 }
 
+.dcomment
+{
+		font-weight: bold;
+		color: #a0a000;
+}
+
+/***************************************
+ * 参照
+ */
+.ref
+{
+		font-weight: bold;
+		color: #0000ff;
+}
+
+.ref:hover
+{
+		cursor: pointer;
+}
 
 /***************************************
  * DDOC
@@ -308,6 +327,12 @@ pre.d_code > q
 		font-weight: bold;
 }
 
+.d_code .psymbol
+{
+		font-weight: bold;
+		color: #23ad7b;
+}
+
 dd
 {
 		margin-bottom: 3em;
@@ -325,6 +350,7 @@ dd
 .param
 {
 		color: #df4840;
+		font-weight: bold;
 }
 
 .params_id

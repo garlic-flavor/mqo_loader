@@ -1,12 +1,12 @@
 /** Mikoto モーションファイルフォーマット .mkm を読み込む。
- * Version:      0.0013(dmd2.060)
- * Date:         2012-Aug-18 21:27:11
+ * Version:      0.0014(dmd2.062)
+ * Date:         2013-Apr-06 01:08:29
  * Authors:      KUMA
  * License:      CC0
  */
 module sworks.mqo.mkm;
 
-import sworks.mqo.parser_core;
+import sworks.mqo.parser;
 public import sworks.mqo.misc;
 
 
@@ -17,8 +17,8 @@ public import sworks.mqo.misc;
 class MKMotion
 {
 	/// .mkm ファイルのヘッダにヒットする。
-//	enum HEADER = `Mikoto\s+Motion\s+Ver\s+(\d[\.\d]?)[\r\n]+`;
-	enum HEADER = "Mikoto Motion Ver";
+	enum HEADER = `^Mikoto\s+Motion\s+Ver\s+(\d(?:\.\d)?)[\r\n]+`;
+//	enum HEADER = "Mikoto Motion Ver";
 	string version_string; /// 現在は "2" が入るはず。
 
 	MotionChunk[jstring] motion; /// モーションチャンク。

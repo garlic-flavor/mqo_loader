@@ -1,28 +1,15 @@
 /** こまごましたのん。
- * Version:      0.0013(dmd2.060)
- * Date:         2012-Aug-18 21:27:11
+ * Version:      0.0014(dmd2.062)
+ * Date:         2013-Apr-06 01:08:29
  * Authors:      KUMA
  * License:      CC0
 */
 module sworks.mqo.misc;
 
 import std.algorithm, std.file, std.math, std.path;
-import sworks.compo.util.matrix;
+public import sworks.compo.util.matrix;
+public import sworks.compo.util.strutil;
 debug import std.stdio;
-
-/*AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA*\
-|*|                                 jstring                                  |*|
-\*AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA*/
-/**
- * SHIFT-JIS の格納に$(BR)
- * コンパイル時評価に向けて、文字コードの変換は遅延させる。
- */
-alias immutable(byte)[] jstring;
-/// suger
-jstring j(T)( T[] str){ return cast(jstring)str; }
-/// ditto
-string c(T)( T[] jstr ){ return cast(string)jstr; }
-
 
 /*SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS*\
 |*|                                  Color3                                  |*|
@@ -48,7 +35,7 @@ struct Color4(PRECISION)
 {
 	union
 	{
-		PRECISION[4] v = 0;
+		PRECISION[4] v = [ 0.0, 0.0, 0.0, 0.0 ];
 		struct{ PRECISION r, g, b, a; }
 	}
 	alias v this;
@@ -64,11 +51,11 @@ struct UVCoordination(PRECISION)
 {
 	union
 	{
-		PRECISION[2] a;
+		PRECISION[2] a = [ 0.0, 0.0 ];
 		struct{ PRECISION u, v; }
 	}
 	alias a this;
-	this( PRECISION[2] a ... ) { this.a[] = a[]; }
+	this( in PRECISION[2] a ... ) { this.a[] = a[]; }
 }
 alias UVCoordination!float UVf;
 
@@ -158,25 +145,31 @@ class TranslateMotion
  */
 class RotateMotion
 {
-	Quaternionf[] quaternion; /// キーフレームにおける回転量
+	Quaternionf[] rotation; /// キーフレームにおける回転量
 	float[] frame; /// [ 0, 1 ]
 
 	this( fRotf[] fr = null )
 	{
 		frame = new float[ fr.length ];
-		quaternion = new Quaternionf[ fr.length ];
+		rotation = new Quaternionf[ fr.length ];
 		float max_frame = 0 < fr.length ? fr[$-1].frame : 0.0;
 		if( 0 < max_frame ) max_frame = 1 / max_frame;
 
 		for( size_t i = 0 ; i < fr.length ; i++ )
 		{
 			frame[i] = fr[i].frame * max_frame;
-			quaternion[i] = fr[i].quaternion;
+			// Quaternion の要素の符号を全て逆さにすると逆回りになる。
+			// Mikoto の出力では時々符号が逆になるようなので戻しておく。
+			if( 0 < i  && (fr[i-1].quaternion+fr[i].quaternion).lengthSq() < (fr[i-1].quaternion-fr[i].quaternion).lengthSq() )
+			{
+				fr[i].quaternion *= -1;
+			}
+			rotation[i] = fr[i].quaternion;
 		}
 	}
 
-	this( float[] f, Quaternionf[] q ) { this.frame = f; this.quaternion = q; }
-	this(){ this.frame = [ 0f ]; this.quaternion = [ Quaternionf() ]; }
+	this( float[] f, Quaternionf[] q ) { this.frame = f; this.rotation = q; }
+	this(){ this.frame = [ 0f ]; this.rotation = [ Quaternionf() ]; }
 
 	/**
 	 * あるフレームにおけるクォータニオンを返す。$(BR)
@@ -188,9 +181,9 @@ class RotateMotion
 	{
 		for( size_t i = 0 ; i < frame.length ; i++ )
 		{
-			if     ( f <= frame[i] || frame.length <= i+1 ) return quaternion[i];
+			if     ( f <= frame[i] || frame.length <= i+1 ) return rotation[i];
 			else if( i+1 < frame.length && f < frame[i+1] )
-				return interpolateLinear( quaternion[i], (f-frame[i])/(frame[i+1]-frame[i]), quaternion[i+1] );
+				return interpolateLinear( rotation[i], (f-frame[i])/(frame[i+1]-frame[i]), rotation[i+1] );
 		}
 		return Quaternionf();
 	}

@@ -43,6 +43,18 @@
 .
 .
 .
+<span class="dkeyword">struct</span> Vertex
+{
+	@VLD_POSITION Vector3f pos;  <span class="dcomment">// 頂点座標</span>
+	@VLD_NORMAL Vector3f normal; <span class="dcomment">// 法線ベクトル</span>
+}
+</pre>
+<a href="http://dlang.org/attribute.html#uda">User Defined Attributes</a>で頂点情報を格納する構造体を定義します。<br />
+<span class="ref" onclick="loadToMain('./src/sworks/mqo/bone_system.html');">bone_system.d</span>を参照して下さい。<br />
+
+
+<pre class="d_code">
+
 IConv.load();
 <span class="dkeyword">auto</span> converter = <span class="dkeyword">new</span> IConvConverter!( <q>UTF-8</q>, <q>SHIFT-JIS</q>, char, 64 );
 string toUTF8( jstring sjis ) { return converter( sjis ); }
@@ -50,7 +62,7 @@ string toUTF8( jstring sjis ) { return converter( sjis ); }
 			IConv.load() では libiconv-2.dll をロードしています。SHIFT-JIS -&gt; UTF-8 の変換をやるためです。<br />
 			MikotoActor クラスのコンストラクタ内で利用していますので、他の使いたい方はソースいじって下さい。<br />
 <pre class="d_code">
-<span class="dkeyword">auto</span> dsan = <span class="dkeyword">new</span> MikotoActor( &amp;toUTF8, <q>dsan\\DさんMove.mks</q> );
+<span class="dkeyword">auto</span> dsan = <span class="dkeyword">new</span> MikotoActor!Vertex( &amp;toUTF8, <q>dsan\\DさんMove.mks</q> );
 </pre>
 			で、データの読み込まれた MikotoActor インスタンスを得られます。<br />
 			将来的にはこのクラスに全ての機能を持たせる予定ですが、まだ何もできません。orz<br />
@@ -148,6 +160,11 @@ string toUTF8( jstring sjis ) { return converter( sjis ); }
 		</p>
 		<p class="history-sec">
 			<ul class="spaced-list">
+				<li>
+					2013/04/03 ver. 0.0014(dmd2.062)<br />
+					UDA で頂点情報を定義するようにしました。<br />
+					std.stdio.File が日本語ファイル対応した...と見せかけて DigitalMars の _wfopen が日本語対応してないやん!-&gt;付属の msvcrt.lib をリンクして下さい。<br />
+				</li>
 				<li>
 					2012/08/18 ver. 0.0013(dmd2.060)<br />
 					github デビュー。あとは SDL2.dll と derelict を更新しました。<br />

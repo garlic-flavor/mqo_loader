@@ -1,14 +1,16 @@
 /**
- * Version:      0.0013(dmd2.060)
- * Date:         2012-Aug-18 21:27:11
+ * Version:      0.0014(dmd2.062)
+ * Date:         2013-Apr-06 01:08:29
  * Authors:      KUMA
  * License:      CC0
-*/
+ */
 module sworks.compo.gl.util;
 
 public import sworks.compo.gl.port;
 
-// prog shouldn't throw any Exception.
+/// $(D_PARAM prog) を glEnable(cap) と glDisable(cap) で挟んだもの。
+/// Bugs:
+///   $(D_PARAM prog) が例外を投げると glDisable(cap) が実行されない。
 void enableScope( cap ... )( scope void delegate() prog)
 {
   foreach(one ; cap) glEnable(one);
@@ -16,12 +18,13 @@ void enableScope( cap ... )( scope void delegate() prog)
   foreach_reverse(one ; cap ) glDisable(one);
 }
 
-
+/// glGetError() が GL_NO_ERROR を返さなかったら例外を投げる。
 T ennoerror( T, string file = __FILE__, size_t line = __LINE__ )( T value, lazy const(char)[] msg = null )
 {
 	checkNoError!( file, line )( msg );
 	return value;
 }
+/// ditto
 void checkNoError( string file = __FILE__, size_t line = __LINE__ )( lazy const(char)[] msg = null )
 {
 	auto err_code = glGetError();

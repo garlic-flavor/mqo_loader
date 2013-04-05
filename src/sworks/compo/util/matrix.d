@@ -1,6 +1,6 @@
 /**
- * Version:      0.0013(dmd2.060)
- * Date:         2012-Aug-18 21:27:11
+ * Version:      0.0014(dmd2.062)
+ * Date:         2013-Apr-06 01:08:29
  * Authors:      KUMA
  * License:      CC0
 */
@@ -162,7 +162,7 @@ struct Vector3(PRECISION)
 {
 	union
 	{
-		PRECISION[3] v = 0;
+		PRECISION[3] v = [ 0.0, 0.0, 0.0 ];
 		struct
 		{
 			PRECISION x,y,z;
@@ -548,6 +548,7 @@ struct Quaternion( PRECISION )
 	}
 
 	Quaternion opBinary( string OP : "*" )( PRECISION a ) const { return Quaternion( x*a, y*a, z*a, w*a ); }
+	ref Quaternion opOpAssign( string OP : "*" )( PRECISION a ) { v[]*=a; return this; }
 
 	Quaternion conjugate() const @property { return Quaternion( -x, -y, -z, w ); }
 
@@ -1116,31 +1117,31 @@ struct Matrix4(PRECISION)
 	static Matrix4 frustumMatrix(PRECISION width, PRECISION height
 	                             , PRECISION near, PRECISION far)
 	{
-		PRECISION nf = 1/(near-far);
-		return Matrix4( 2*near/width, 0.0,           0.0,           0.0
-		              , 0.0,          2*near/height, 0.0,           0.0
-		              , 0.0,          0.0,           (far+near)*nf, -1.0
-		              , 0.0,          0.0,           2*far*near*nf, 1.0 );
+		PRECISION fn1 = 1/(far-near);
+		return Matrix4( 2*near/width, 0.0,           0.0,              0.0
+		              , 0.0,          2*near/height, 0.0,              0.0
+		              , 0.0,          0.0,           -(far+near)*fn1, -1.0
+		              , 0.0,          0.0,           -2*far*near*fn1,  0.0 );
 	}
 	static Matrix4 frustumMatrixLH(PRECISION width, PRECISION height
 	                             , PRECISION near, PRECISION far)
 	{
-		PRECISION nf = 1/(far-near);
-		return Matrix4( -2*near/width, 0.0,            0.0,            0.0
-		              , 0.0,           -2*near/height, 0.0,            0.0
-		              , 0.0,           0.0,            -(far+near)*nf, 1.0
-		              , 0.0,           0.0,            2*far*near*nf,  1.0 );
+		PRECISION fn1 = 1/(far-near);
+		return Matrix4( -2*near/width, 0.0,            0.0,             0.0
+		              , 0.0,           -2*near/height, 0.0,             0.0
+		              , 0.0,           0.0,            -(far+near)*fn1, 1.0
+		              , 0.0,           0.0,            2*far*near*fn1,  1.0 );
 	}
 
 	static Matrix4 perspectiveMatrix(PRECISION fovy, PRECISION asp
 	                                 , PRECISION near, PRECISION far)
 	{
 		PRECISION f = 1/(tan(fovy*0.5*TO_RADIAN));
-		PRECISION nf = 1/(near-far);
-		return Matrix4( f/asp, 0.0, 0.0,           0.0
-		              , 0.0,   f,   0.0,           0.0
-		              , 0.0,   0.0, (far+near)*nf, -1.0
-		              , 0.0,   0.0, 2*far*near*nf, 1.0 );
+		PRECISION fn1 = 1/(far-near);
+		return Matrix4( f/asp, 0.0, 0.0,              0.0
+		              , 0.0,   f,   0.0,              0.0
+		              , 0.0,   0.0, -(far+near)*fn1, -1.0
+		              , 0.0,   0.0, -2*far*near*fn1,  0.0 );
 	}
 
 	static Matrix4 perspectiveMatrixLH(PRECISION fovy, PRECISION asp
@@ -1232,6 +1233,14 @@ struct Matrix4(PRECISION)
 
 alias Matrix4!double Matrix4d;
 alias Matrix4!float Matrix4f;
+
+unittest
+{
+	auto mat = M4.perspectiveMatrix( 45, 1, 1, 3 ) * M4.lookAtMatrix( V3( 0, 0, 1 ), V3( 0, 0, 0 ), V3( 0, 1, 0 ) );;
+	auto v = V3( 0, 0, -2 );
+	auto v2 = mat * v;
+	writeln( v2 );
+}
 
 unittest
 {

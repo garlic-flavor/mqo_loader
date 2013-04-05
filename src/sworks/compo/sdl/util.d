@@ -1,6 +1,6 @@
 /**
- * Version:      0.0013(dmd2.060)
- * Date:         2012-Aug-18 21:27:11
+ * Version:      0.0014(dmd2.062)
+ * Date:         2013-Apr-06 01:08:29
  * Authors:      KUMA
  * License:      CC0
 */
@@ -9,6 +9,31 @@ module sworks.compo.sdl.util;
 public import std.exception, std.conv, std.file, std.traits, std.algorithm;
 public import sworks.compo.sdl.port;
 debug public import std.stdio;
+
+/*############################################################################*\
+|*#                                Functions                                 #*|
+\*############################################################################*/
+SDLExtInitDel getGLInitializer(alias LOADER)( bool double_buffer, int depth_size, int red_size, int green_size
+                                            , int blue_size, int alpha_size, int samples = 0 )
+{
+	return
+	{
+		LOADER.load();
+		SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, double_buffer ? 1 : 0 );
+		SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE, depth_size );
+		SDL_GL_SetAttribute( SDL_GL_RED_SIZE, red_size );
+		SDL_GL_SetAttribute( SDL_GL_GREEN_SIZE, green_size );
+		SDL_GL_SetAttribute( SDL_GL_BLUE_SIZE, blue_size );
+		SDL_GL_SetAttribute( SDL_GL_ALPHA_SIZE, alpha_size );
+
+		if( 0 < samples )
+		{
+			SDL_GL_SetAttribute( SDL_GL_MULTISAMPLEBUFFERS, 1 );
+			SDL_GL_SetAttribute( SDL_GL_MULTISAMPLESAMPLES, samples );
+		}
+		return {};
+	};
+}
 
 /*############################################################################*\
 |*#                                Constants                                 #*|
@@ -39,7 +64,7 @@ template SDLWindowMix( CASES ... )
 		else append( "log-out.txt", msg );
 	}
 
-	//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
+    //\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\//\\
 
 	SDL_Window* window;
 	SDL_Renderer* renderer;

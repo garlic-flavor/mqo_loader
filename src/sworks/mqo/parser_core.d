@@ -9,40 +9,8 @@ module sworks.mqo.parser_core;
 import std.ascii, std.conv, std.exception, std.string;
 import sworks.mqo.misc;
 
-/*EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE*\
-|*|                                MQ_NEWLINE                                |*|
-\*EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE*/
-/// Metasequoia では改行コードは MS式で固定(?)
-enum MQ_NEWLINE = "\r\n";
-
-/*CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC*\
-|*|                             SyntaxException                              |*|
-\*CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC*/
 debug version = STRICT;
-/**
- * parse 時に投げられる。
- * version(STRICT) では、よりたくさん例外を投げる。
- * debug コンパイルでは STRICT がデフォルト。
- */
-class SyntaxException : Exception
-{
-	string message;
 
-	/**
-	 * Params:
-	 *   line_num  = 問題が起きた対象ファイル内での行数。CachedFile が保持している。
-	 *   cell_cont = 問題の箇所
-	 *   msg       = ここにスタックトレース情報が入っていることを期待している。
-	 */
-	this( size_t line_num, string cell_cont, string msg, string filename = __FILE__, int line = __LINE__ )
-	{
-		super( "SyntaxException", filename, line );
-		message = " at line " ~ (line_num+1).to!string ~  " : something wrong around \"" ~ cell_cont ~ "\""
-		        ~ newline ~ msg;
-	}
-
-	string toString() { return message; }
-}
 
 /*IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII*\
 |*|                              ICachedBuffer                               |*|
@@ -68,6 +36,36 @@ interface ICachedBuffer
 	void flush();
 
 	ICachedBuffer dup() @property;
+}
+
+/// suger
+bool startsWith( ICachedBuffer cb, const(byte)[] str )
+{
+	for( size_t i = 0 ; i < str.length ; i++, cb.discard ) if( cb.peep != str[i] ) return false;
+	return true;
+}
+
+/// suger
+void skipWhite( ICachedBuffer cb )
+{
+	for( ; !cb.eof && cb.peep.isWhite ; cb.discard ){ }
+}
+
+/// suger
+bool startsWithKeyword( ICachedBuffer cb, const(byte)[] str )
+{
+	for( ; cb.peep.isWhite ; cb.discard ) if( cb.eof ) return false;
+	for( size_t i = 0 ; i < str.length ; i++, cb.discard ) if( cb.peep != str[i] ) return false;
+	return true;
+}
+
+string startsWithNumber( ICachedBuffer cb )
+{
+	for( ; cb.peep.isWhite ; cb.discard ) if( cb.eof ) return null;
+	for( ; !cb.eof && ( cb.peep.isDigit || '.' == cb.peep || '_' == cb.peep ) ; cb.push ) { }
+	string result = cb.buffer.c;
+	cb.flush;
+	return result;
 }
 
 /*IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII*\
@@ -101,6 +99,14 @@ interface ILength
 interface IOwnParser
 {
 	bool parser( ref Token );
+}
+
+/*IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII*\
+|*|                              IHeaderChecker                              |*|
+\*IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII*/
+interface IHeaderChecker
+{
+	void checkHeader( ICachedBuffer );
 }
 
 /*SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS*\
@@ -466,10 +472,11 @@ struct Token
  * Return:
  *   <del>ヴァージョン文字列</del>
  */
+/*
 void check_header( ICachedBuffer cf, string reg )
 {
 	auto version_field = cast(string)cf.cache;
 	if( version_field.startsWith( reg ) ) cf.discard( reg.length );
 	else throw new Exception( "file header is not correct." );
 }
-
+*/

@@ -1,6 +1,6 @@
 /** Mikoto Scene ファイルを読み込む。
- * Version:      0.0013(dmd2.060)
- * Date:         2012-Aug-18 21:27:11
+ * Version:      0.0014(dmd2.062)
+ * Date:         2013-Apr-06 01:08:29
  * Authors:      KUMA
  * License:      CC0
  */
@@ -8,7 +8,7 @@ module sworks.mqo.mks;
 
 import std.ascii, std.file, std.path;
 import sworks.compo.util.matrix;
-import sworks.mqo.parser_core;
+import sworks.mqo.parser;
 import sworks.mqo.mqo;
 import sworks.mqo.mkm;
 
@@ -19,7 +19,8 @@ import sworks.mqo.mkm;
 class MKScene
 {
 	/// .mks ファイルのヘッダにヒットする。
-	enum HEADER = `Mikoto Scene Ver`;
+	enum HEADER = `^Mikoto\s+Scene\s+Ver\s+(\d(?:\.\d)?)[\r\n]+`;
+//	enum HEADER = `Mikoto Scene Ver`;
 	string version_string; /// 現状では "1"
 
 	CharacterChunk[jstring] character; ///

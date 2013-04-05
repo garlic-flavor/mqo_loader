@@ -1,6 +1,6 @@
 /** Metasequoia モデルのファイルフォーマット .mqo を読み込む。
- * Version:      0.0013(dmd2.060)
- * Date:         2012-Aug-18 21:27:11
+ * Version:      0.0014(dmd2.062)
+ * Date:         2013-Apr-06 01:08:29
  * Authors:      KUMA
  * License:      CC0
  */
@@ -9,7 +9,7 @@ module sworks.mqo.mqo;
 import std.algorithm, std.conv, std.exception, std.file, std.regex;
 
 public import sworks.compo.util.matrix;
-import sworks.mqo.parser_core;
+import sworks.mqo.parser;
 public import sworks.mqo.misc;
 
 /*CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC*\
@@ -25,14 +25,15 @@ public import sworks.mqo.misc;
 class MQObject
 {
 	/**
-	 * <del>.mqo ファイルのヘッダにヒットする正規表現</del>$(BR)
-	 * <del>Captures[1] にバージョン文字列が入るようにしてある。</del>( ver0.0011以降 )
-	 * ファイル先頭からヴァージョン文字列直前までの文字列を入れておく。$(BR)
+	 * .mqo ファイルのヘッダにヒットする正規表現$(BR)
+	 * sworks.compo.util.dregex を使っている。(ver 0.0014以降)$(BR)
+	 * <del>Captures[1] にバージョン文字列が入るようにしてある。</del>( ver0.0011以降 )$(BR)
+	 * <del>ファイル先頭からヴァージョン文字列直前までの文字列を入れておく。</del>$(BR)
 	 * BOM はついていないものと仮定する。$(BR)
-	 * コンパイル時に std.regex が使えないからだきょった orz...$(BR)
+	 * <del>コンパイル時に std.regex が使えないからだきょった orz...</del>$(BR)
 	 */
-//	enum HEADER = `^Metasequoia\s+Document[\r\n]+Format\s+Text\s+Ver\s+(1\.\d)[\r\n]+`;
-	enum HEADER = "Metasequoia Document\r\nFormat Text Ver";
+	enum HEADER = `^Metasequoia\s+Document[\r\n]+Format\s+Text\s+Ver\s+(1\.\d)[\r\n]+`;
+//	enum HEADER = "Metasequoia Document\r\nFormat Text Ver";
 
 	string version_string; /// メタセコイアファイルフォーマットのバージョン。(現在 1.0 )
 	SceneChunk scene; /// Scene チャンク
@@ -77,9 +78,11 @@ class SceneChunk
 	Vector3f lookat; /// ditto
 	float head; /// ditto
 	float pich; /// ditto
+	float bank; /// ditto
 	int ortho; /// ditto
 	float zoom2; /// ditto
 	Color3f amb; /// ditto
+	DirlightsChunk[] dirlights; /// ditto
 }
 
 /*CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC*\
@@ -340,6 +343,22 @@ class ObjectChunk : INamable
 }
 
 /*CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC*\
+|*|                              DirlightsChunk                              |*|
+\*CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC*/
+class DirlightsChunk
+{
+	Light light;
+}
+/*CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC*\
+|*|                                  Light                                   |*|
+\*CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC*/
+class Light
+{
+	Vector3f dir;
+	Vector3f color;
+}
+
+/*CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC*\
 |*|                               BVertexChunk                               |*|
 \*CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC*/
 /// BVertex チャンク
@@ -455,9 +474,18 @@ void main()
 {
 //	auto cc = new CellObject( new CoreCell( new CachedFile( "dsan\\DさんMove.mks" ), &toUTF8 ) );
 //	auto mqo = load!MQObject( "dsan\\Dさん.mqo" );
-	auto mqo = load!MQObject( "dsan\\Dさん.mqo" );
+try
+{
+//	auto mqo = load!MQObject( "commander.mqo" );
 
-	writeln( mqo.dump_members );
+//	writeln( mqo.object.dump_members(3) );
+	auto file = new MqoFile( "commander.mqo" );
+	auto vs = file.checkHeader( MQObject.HEADER );
+	writeln( vs );
+
+}
+catch( SyntaxException se ) writeln( se.toString );
+catch( Exception e ) writeln( e.toString );
 }
 }
 
